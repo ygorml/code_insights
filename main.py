@@ -8,6 +8,7 @@ import sys
 
 import issues
 import clone
+import analytics
 
 from data import repos
 
