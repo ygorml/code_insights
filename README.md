@@ -1,5 +1,7 @@
 # code_insights v0.1
 
+<img src="logo.png" alt="logo" height="200">
+
 ## 1 INTRODUÇÃO
 No campo da engenharia de software, sistemas de controle de versão tornaram-se essenciais para gerenciar alterações, facilitar a colaboração e manter um histórico do desenvolvimento de projetos. Esses sistemas são fundamentais para acompanhar a evolução do software, permitindo que os desenvolvedores revertam a versões anteriores e compreendam a trajetória das mudanças no código. Contudo, embora o controle de versão seja eficiente na gestão do histórico, a análise da qualidade do código dentro desses sistemas apresenta desafios. Ferramentas existentes muitas vezes carecem da profundidade e da integração necessárias para uma análise completa, especialmente em contextos acadêmicos, onde é importante compreender tendências de qualidade do código ao longo do tempo.
 Este estudo aborda a lacuna na integração entre dados de controle de versão e métricas de qualidade de código, propondo uma ferramenta que una esses elementos de forma eficiente para fins de pesquisa acadêmica. A motivação surge da necessidade de uma solução que seja equilibrada, nem demasiado simples nem excessivamente complexa, oferecendo a profundidade necessária para investigações detalhadas. O problema reside na limitação dos métodos atuais, que não conseguem fornecer a integração adequada para análise de tendências de qualidade de código dentro dos sistemas de controle de versão.
