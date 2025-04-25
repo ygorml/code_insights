@@ -23,6 +23,9 @@ $RECYCLE.BIN/
 # PyCache
 __pycache__/
 
+# Cloned Repos
+clones/
+
 # Windows Installer files
 *.cab
 *.msi
