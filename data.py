@@ -1,4 +1,7 @@
 repos = {
-        'deepseek-ai': 'DeepSeek-V3',
-        'bytedance': 'UI-TARS'
+        'django': 'django',
+        'scikit-learn': 'scikit-learn',
+        'mitmproxy': 'mitmproxy',
+        'huggingface': 'transformers',
+        'ccxt': 'ccxt'
 }
