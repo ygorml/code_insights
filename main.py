@@ -1,5 +1,3 @@
-import releasy
-
 import requests
 import json
 
@@ -14,12 +12,11 @@ from data import repos
 
 def main():
     sys.stdout.reconfigure(encoding='utf-8')   
-    #issues.getIssues(repos) 
-    #clone.cloneRepo(repos)
+    #issues.get_issues(repos) 
+    #clone.clone_repo(repos)
     test = analytics.get_project_metrics('clones/django')
-    print(type(test))
-    for key, value in test.items():
-        print(f"{key}: {value}\n")
+    stats = analytics.get_project_statistics(test)
+    print(stats)
 if __name__ == "__main__":
     main()
 

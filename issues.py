@@ -5,7 +5,7 @@ from decouple import config
 api_key = config('API_KEY')
 api_url = config('GITHUB_API_URL')
 
-def getIssues(query_repos):
+def get_issues(query_repos):
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"

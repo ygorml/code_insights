@@ -71,6 +71,60 @@ def get_project_metrics(project_path):
 #     for metric, value in metrics.items():
 #         print(f"{metric}: {value}")
 
+def get_project_statistics(metrics_report):
+    statistics = {}
+    below_mean_maintainability = []
+    above_mean_complexity    = []
+
+    # inicialização de contadores
+    total_loc = total_lloc = total_sloc = total_comments = total_multi = total_blank = 0
+    total_complexity = total_maintainability_index = n_files = 0 
+
+    # soma de todos os valores
+    for fname, stat in metrics_report.items():
+        total_loc                   += stat['loc']
+        total_lloc                  += stat['lloc']
+        total_sloc                  += stat['sloc']
+        total_comments              += stat['comments']
+        total_multi                 += stat['multi']
+        total_blank                 += stat['blank']
+        total_complexity            += stat['average_complexity']
+        total_maintainability_index += stat['maintainability_index']
+        n_files                     += 1
+
+    # evita divisão por zero
+    if n_files:
+        mean_maintainability = total_maintainability_index / n_files
+        mean_complexity      = total_complexity / n_files
+    else:
+        mean_maintainability = mean_complexity = 0
+
+    # preenche o dicionário de estatísticas
+    statistics.update({
+        'revision_id': 0,
+        'total_loc': total_loc,
+        'total_lloc': total_lloc,
+        'total_sloc': total_sloc,
+        'total_comments': total_comments,
+        'total_multi': total_multi,
+        'total_blank': total_blank,
+        'n_files': n_files,
+        'mean_maintainability_index': mean_maintainability,
+        'mean_complexity': mean_complexity,
+    })
+
+    # separa arquivos acima/abaixo da média
+    for fname, stat in metrics_report.items():
+        if stat['average_complexity'] > mean_complexity:
+            above_mean_complexity.append(fname)
+        if stat['maintainability_index'] < mean_maintainability:
+            below_mean_maintainability.append(fname)
+
+    statistics['above_mean_complexity']    = above_mean_complexity
+    statistics['below_mean_maintainability'] = below_mean_maintainability
+
+    return statistics
+        
 def checkout_git_revision(repo_path, revision):
     """
     Checkout a specific revision of a local git repository.
