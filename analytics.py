@@ -1,3 +1,6 @@
+import os
+import subprocess
+
 from pydriller import Repository
 
 # Python Metrics
@@ -5,20 +8,13 @@ import radon.metrics as metrics
 import radon.complexity as complexity
 import radon.raw as raw
 
-# C++ Metrics
+# TODO: Implementar cálculo de métricas para C++ 
 import lizard
 
-import os
-import subprocess
-
-# Releases
+# TODO: Obter hashes dos marcos temporais
 import releasy
 
-# Data - Repositories information
 from data import repos
-
-def get_releases_revision(project_path):
-    pass
 
 def get_code_metrics(file_path):
     """Calculate various software quality metrics for a Python file."""
@@ -75,6 +71,37 @@ def get_project_metrics(project_path):
 #         print(f"{metric}: {value}")
 
 def get_project_statistics(metrics_report):
+    """
+    Gera estatísticas agregadas a partir de um relatório de métricas por arquivo.
+
+    Args:
+        metrics_report (dict[str, dict[str, int | float]]): 
+            Um dicionário cujo keys são nomes de arquivos e values são dicionários contendo
+            as seguintes métricas por arquivo:
+                - loc (int): linhas de código totais
+                - lloc (int): linhas lógicas de código
+                - sloc (int): linhas de código fonte
+                - comments (int): linhas de comentário
+                - multi (int): linhas de comentário multilinha
+                - blank (int): linhas em branco
+                - average_complexity (float): complexidade ciclomática média
+                - maintainability_index (float): índice de manutenibilidade
+
+    Returns:
+        dict[str, int | float | list[str]]: Um dicionário com as estatísticas gerais do projeto:
+            - revision_id (int): identificador de revisão (sempre 0 neste momento)
+            - total_loc (int): soma de todas as linhas de código
+            - total_lloc (int): soma de todas as linhas lógicas de código
+            - total_sloc (int): soma de todas as linhas de código fonte
+            - total_comments (int): soma de todas as linhas de comentário
+            - total_multi (int): soma de todas as linhas de comentário multilinha
+            - total_blank (int): soma de todas as linhas em branco
+            - n_files (int): número de arquivos processados
+            - mean_maintainability_index (float): índice médio de manutenibilidade
+            - mean_complexity (float): complexidade média
+            - above_mean_complexity (list[str]): lista de arquivos cuja complexidade está acima da média
+            - below_mean_maintainability (list[str]): lista de arquivos cujo índice de manutenibilidade está abaixo da média
+    """
     statistics = {}
     below_mean_maintainability = []
     above_mean_complexity    = []
@@ -117,14 +144,18 @@ def get_project_statistics(metrics_report):
     })
 
     # separa arquivos acima/abaixo da média
-    for fname, stat in metrics_report.items():
-        if stat['average_complexity'] > mean_complexity:
-            above_mean_complexity.append(fname)
-        if stat['maintainability_index'] < mean_maintainability:
-            below_mean_maintainability.append(fname)
+    
+    # Início do append de arquivos low quality
+    # for fname, stat in metrics_report.items():
+    #     if stat['average_complexity'] > mean_complexity:
+    #         above_mean_complexity.append(fname)
+    #     if stat['maintainability_index'] < mean_maintainability:
+    #         below_mean_maintainability.append(fname)
 
-    statistics['above_mean_complexity']    = above_mean_complexity
-    statistics['below_mean_maintainability'] = below_mean_maintainability
+    # statistics['above_mean_complexity']    = above_mean_complexity
+    # statistics['below_mean_maintainability'] = below_mean_maintainability
+    # Fim do append de arquivos low quality
+
 
     return statistics
         
