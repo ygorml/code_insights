@@ -17,6 +17,9 @@ import releasy
 # Data - Repositories information
 from data import repos
 
+def get_releases_revision(project_path):
+    pass
+
 def get_code_metrics(file_path):
     """Calculate various software quality metrics for a Python file."""
     try:
