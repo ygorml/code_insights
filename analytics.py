@@ -14,10 +14,149 @@ import lizard
 # TODO: Obter hashes dos marcos temporais
 import releasy
 
+import ast
+import os
+import json
+from collections import defaultdict
+from radon.complexity import cc_visit
+
 from data import repos
 
+"""
+CK Analytics Area
+"""
+
+class ClassInfo:
+    def __init__(self, name):
+        self.name = name
+        self.methods = []
+        self.attributes = set()
+        self.base_classes = []
+        self.children = []
+        self.calls = set()
+        self.called_by = set()
+
+class CKAnalyzer(ast.NodeVisitor):
+    def __init__(self):
+        self.classes = {}
+        self.current_class = None
+
+    def visit_ClassDef(self, node):
+        class_name = node.name
+        class_info = self.classes.setdefault(class_name, ClassInfo(class_name))
+        class_info.base_classes = [b.id for b in node.bases if isinstance(b, ast.Name)]
+
+        parent_class = self.current_class
+        self.current_class = class_name
+        for stmt in node.body:
+            self.visit(stmt)
+        self.current_class = parent_class
+
+    def visit_FunctionDef(self, node):
+        if self.current_class:
+            self.classes[self.current_class].methods.append(node.name)
+            for n in ast.walk(node):
+                if isinstance(n, ast.Call):
+                    if isinstance(n.func, ast.Attribute):
+                        self.classes[self.current_class].calls.add(n.func.attr)
+                    elif isinstance(n.func, ast.Name):
+                        self.classes[self.current_class].calls.add(n.func.id)
+                elif isinstance(n, ast.Attribute):
+                    self.classes[self.current_class].attributes.add(n.attr)
+
+    def visit_Assign(self, node):
+        if self.current_class:
+            for target in node.targets:
+                if isinstance(target, ast.Attribute):
+                    self.classes[self.current_class].attributes.add(target.attr)
+
+    def build_hierarchy(self):
+        for cls in self.classes.values():
+            for base in cls.base_classes:
+                if base in self.classes:
+                    self.classes[base].children.append(cls.name)
+
+    def compute_metrics(self):
+        metrics = {}
+        for cls in self.classes.values():
+            wmc = len(cls.methods)
+            dit = self._compute_dit(cls.name)
+            noc = len(cls.children)
+            rfc = len(cls.calls) + len(cls.methods)
+            cbo = self._compute_cbo(cls)
+            lcom = self._compute_lcom(cls)
+
+            metrics[cls.name] = {
+                'WMC': wmc,
+                'DIT': dit,
+                'NOC': noc,
+                'RFC': rfc,
+                'CBO': cbo,
+                'LCOM': lcom
+            }
+        return metrics
+
+    def _compute_dit(self, class_name):
+        visited = set()
+        def depth(cls):
+            if cls not in self.classes or cls in visited:
+                return 0
+            visited.add(cls)
+            bases = self.classes[cls].base_classes
+            return 1 + max((depth(base) for base in bases), default=0)
+        return depth(class_name)
+
+    def _compute_cbo(self, cls):
+        external_calls = 0
+        for call in cls.calls:
+            for other_cls in self.classes.values():
+                if other_cls.name != cls.name and call in other_cls.methods:
+                    external_calls += 1
+                    break
+        return external_calls
+
+    def _compute_lcom(self, cls):
+        method_attr = []
+        for method in cls.methods:
+            accessed = set()
+            for call in cls.calls:
+                if method in call:
+                    accessed.update(cls.attributes)
+            method_attr.append(accessed)
+        pairs = [(a, b) for i, a in enumerate(method_attr) for b in method_attr[i+1:]]
+        no_shared = sum(1 for a, b in pairs if a.isdisjoint(b))
+        return no_shared
+
+def do_ck_analysis_file(filepath):
+    with open(filepath, 'r', encoding='utf-8') as f:
+        code = f.read()
+
+    tree = ast.parse(code)
+    analyzer = CKAnalyzer()
+    analyzer.visit(tree)
+    analyzer.build_hierarchy()
+    metrics = analyzer.compute_metrics()
+    return metrics
+
+def get_ck_metrics(path):
+    results = {}
+    for root, _, files in os.walk(path):
+        for file in files:
+            if file.endswith('.py'):
+                fullpath = os.path.join(root, file)
+                try:
+                    metrics = do_ck_analysis_file(fullpath)
+                    results[fullpath] = metrics
+                except Exception as e:
+                    print(f"Error in {fullpath}: {e}")
+    return results
+
+"""
+Raw and Halstead Analytics Area
+"""
+
 def get_code_metrics(file_path):
-    """Calculate various software quality metrics for a Python file."""
+    """Calculate various software quality metrics (RAW and Halstead) for a Python file."""
     try:
         with open(file_path, 'r') as file:
             code = file.read()
@@ -157,41 +296,7 @@ def get_project_statistics(metrics_report):
     # Fim do append de arquivos low quality
 
 
-    return statistics
-        
-def checkout_git_revision(repo_path, revision):
-    """
-    Checkout a specific revision of a local git repository.
-    
-    Args:
-        repo_path (str): Path to the local git repository
-        revision (str): Git revision (commit hash, branch name, or tag)
-        
-    Returns:
-        bool: True if checkout successful, False otherwise
-    """
-    try:
-        # Change to repository directory
-        original_dir = os.getcwd()
-        os.chdir(repo_path)
-        
-        # Run git checkout command
-        result = subprocess.run(['git', 'checkout', revision], 
-                              capture_output=True,
-                              text=True)
-        
-        # Change back to original directory
-        os.chdir(original_dir)
-        
-        if result.returncode == 0:
-            return True
-        else:
-            print(f"Error checking out revision: {result.stderr}")
-            return False
-            
-    except Exception as e:
-        print(f"Error during git checkout: {str(e)}")
-        return False
+    return statistics      
 
 def get_git_revisions(repo_path, n=10):
     """
@@ -226,3 +331,37 @@ def get_git_revisions(repo_path, n=10):
     except Exception as e:
         print(f"Error retrieving git history: {str(e)}")
         return []
+
+def checkout_git_revision(repo_path, revision):
+    """
+    Checkout a specific revision of a local git repository.
+    
+    Args:
+        repo_path (str): Path to the local git repository
+        revision (str): Git revision (commit hash, branch name, or tag)
+        
+    Returns:
+        bool: True if checkout successful, False otherwise
+    """
+    try:
+        # Change to repository directory
+        original_dir = os.getcwd()
+        os.chdir(repo_path)
+        
+        # Run git checkout command
+        result = subprocess.run(['git', 'checkout', revision], 
+                              capture_output=True,
+                              text=True)
+        
+        # Change back to original directory
+        os.chdir(original_dir)
+        
+        if result.returncode == 0:
+            return True
+        else:
+            print(f"Error checking out revision: {result.stderr}")
+            return False
+            
+    except Exception as e:
+        print(f"Error during git checkout: {str(e)}")
+        return False
