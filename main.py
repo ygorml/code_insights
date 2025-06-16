@@ -4,11 +4,10 @@ import json
 import chardet
 import sys
 
-# Importação de módulos internos da ferramenta
+# Importação de variáveis e módulos internos da ferramenta
 import issues
 import analytics
 import utils
-
 from data import repos
 
 def main():

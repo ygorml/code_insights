@@ -64,9 +64,6 @@ def checkout_git_revision(repo_path, revision):
         # Change to repository directory
         original_dir = os.getcwd()
         os.chdir(repo_path)
-        
-        # TODO: Consertar esta função
-        save_current_revision_repo(repo_path, revision)
                 
         # Run git checkout command
         result = subprocess.run(['git', 'checkout', revision], 
@@ -77,6 +74,7 @@ def checkout_git_revision(repo_path, revision):
         os.chdir(original_dir)
         
         if result.returncode == 0:
+            save_current_revision_repo(repo_path, revision)
             return True
         else:
             print(f"Error checking out revision: {result.stderr}")
