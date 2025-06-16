@@ -6,6 +6,7 @@ from pydriller import Repository
 # Python Metrics
 import radon.metrics as metrics
 import radon.complexity as complexity
+from radon.complexity import cc_visit
 import radon.raw as raw
 
 # TODO: Implementar cálculo de métricas para C++ 
@@ -15,12 +16,13 @@ import lizard
 import releasy
 
 import ast
-import os
 import json
 from collections import defaultdict
-from radon.complexity import cc_visit
 
+# Importação de módulos internos da ferramenta
 from data import repos
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 """
 CK Analytics Area
@@ -209,7 +211,7 @@ def get_project_metrics(project_path):
 #     for metric, value in metrics.items():
 #         print(f"{metric}: {value}")
 
-def get_project_statistics(metrics_report):
+def get_project_statistics(metrics_report, revision_id):
     """
     Gera estatísticas agregadas a partir de um relatório de métricas por arquivo.
 
@@ -270,7 +272,7 @@ def get_project_statistics(metrics_report):
 
     # preenche o dicionário de estatísticas
     statistics.update({
-        'revision_id': 0,
+        'revision_id': revision_id,
         'total_loc': total_loc,
         'total_lloc': total_lloc,
         'total_sloc': total_sloc,
@@ -296,72 +298,4 @@ def get_project_statistics(metrics_report):
     # Fim do append de arquivos low quality
 
 
-    return statistics      
-
-def get_git_revisions(repo_path, n=10):
-    """
-    Get the last n revisions of a git repository.
-    
-    Args:
-        repo_path (str): Path to the local git repository
-        n (int): Number of revisions to retrieve
-        
-    Returns:
-        list: List of commit hashes, or empty list if error
-    """
-    try:
-        # Change to repository directory
-        original_dir = os.getcwd()
-        os.chdir(repo_path)
-        
-        # Get commit hashes
-        result = subprocess.run(['git', 'log', f'-{n}', '--pretty=format:%H'],
-                              capture_output=True,
-                              text=True)
-                              
-        # Change back to original directory
-        os.chdir(original_dir)
-        
-        if result.returncode == 0:
-            return result.stdout.split('\n')
-        else:
-            print(f"Error getting revisions: {result.stderr}")
-            return []
-            
-    except Exception as e:
-        print(f"Error retrieving git history: {str(e)}")
-        return []
-
-def checkout_git_revision(repo_path, revision):
-    """
-    Checkout a specific revision of a local git repository.
-    
-    Args:
-        repo_path (str): Path to the local git repository
-        revision (str): Git revision (commit hash, branch name, or tag)
-        
-    Returns:
-        bool: True if checkout successful, False otherwise
-    """
-    try:
-        # Change to repository directory
-        original_dir = os.getcwd()
-        os.chdir(repo_path)
-        
-        # Run git checkout command
-        result = subprocess.run(['git', 'checkout', revision], 
-                              capture_output=True,
-                              text=True)
-        
-        # Change back to original directory
-        os.chdir(original_dir)
-        
-        if result.returncode == 0:
-            return True
-        else:
-            print(f"Error checking out revision: {result.stderr}")
-            return False
-            
-    except Exception as e:
-        print(f"Error during git checkout: {str(e)}")
-        return False
+    return statistics     
