@@ -3,6 +3,7 @@ import subprocess
 
 from git import Repo
 from decouple import config
+from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLONE_BASE_PATH = config('CLONE_REPOS_BASE')
@@ -13,8 +14,37 @@ def clone_repo(reposToClone):
         Repo.clone_from(github_endpoint, "{}/{}/{}/".format(CLONE_BASE_PATH, key, value))
         
         revisions = get_git_revisions("{}/{}/{}/".format(CLONE_BASE_PATH, key, value))
-        save_current_revision_repo("{}/{}/{}/".format(CLONE_BASE_PATH, key, value), revisions[0])        
-        
+        save_current_revision_repo("{}/{}/{}/".format(CLONE_BASE_PATH, key, value), revisions[0])
+
+def listar_repos_clonados() -> list:
+    """
+    Busca em 'caminho' os diretórios e, para cada um, suas subpastas imediatas.
+    Retorna uma lista com a formatação 'diretório/subdiretório'.
+    
+    Exemplo:
+    - clones/
+       ├── ccxt/
+       │    └── ccxt/
+       └── huggingface/
+            └── transformers/
+    
+    Retorno: ['ccxt/ccxt', 'huggingface/transformers']
+    """
+    
+    caminho = CLONE_BASE_PATH
+    
+    resultado = []
+    p = Path(caminho)
+    
+    # Itera sobre cada diretório em 'caminho'
+    for diretorio in p.iterdir():
+        if diretorio.is_dir():
+            # Itera sobre as subpastas imediatas dentro do diretório
+            for subdiretorio in diretorio.iterdir():
+                if subdiretorio.is_dir():
+                    resultado.append(f"{diretorio.name}/{subdiretorio.name}")
+    return resultado
+            
 def get_git_revisions(repo_path, n=10):
     """
     Get the last n revisions of a git repository.

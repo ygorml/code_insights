@@ -6,8 +6,7 @@ import streamlit as st
 
 import utils
 
-st.sidebar.write("code_insights")
-st.sidebar.write("Configurar Análise de Repositório")
+st.sidebar.write("code_insights - Configurações")
 
 st.sidebar.divider()
 
@@ -16,17 +15,20 @@ st.sidebar.divider()
 st.sidebar.write("1. Obtenção do Repositório")
 author = st.sidebar.text_input("GitHub - Autor do repositório")
 name = st.sidebar.text_input("GitHub - Nome do repositório")
-st.sidebar.write("Ou") 
-link = st.sidebar.text_input("GitHub - Link do repositório")
 obter_repo = st.sidebar.button("Obter repositório!")
+
+if obter_repo and author and name:
+    repo = {
+        f"{author}": f"{name}" 
+    }
+    utils.clone_repo(repo)
 
 st.sidebar.divider()
 
 # Seleção do Repositório
 
 st.sidebar.write("2. Seleção do Repositório") 
-repos_locais_lista = ['mitmproxy', 'scikit-learn', 'django', 'transformers']
-repos_locais = st.sidebar.selectbox("Escolha um repositório local:", repos_locais_lista)
+repos_locais = st.sidebar.selectbox("Escolha um repositório local:", utils.listar_repos_clonados())
 raw_halstead = st.sidebar.checkbox("Raw e Métricas de Halstead")
 ck = st.sidebar.checkbox("Métricas de Chidamber & Kemerer")
 issues = st.sidebar.checkbox("Issues")
