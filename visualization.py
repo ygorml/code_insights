@@ -8,6 +8,69 @@ import os
 import utils
 import datetime
 
+import analytics
+
+def arquivo_unico_to_markdown(data: dict) -> str:
+    """Converte os dados de um arquivo único para Markdown."""
+    df = pd.DataFrame([data])
+    return df.to_markdown(index=False)
+
+def projeto_to_markdown(data: dict) -> str:
+    """Converte os dados do projeto (métricas por arquivo) para Markdown."""
+    # Transforma o dicionário em uma lista de dicionários (para o DataFrame)
+    lista_de_dados = []
+    for arquivo, metricas in data.items():
+        metricas['arquivo'] = arquivo  # Adiciona o nome do arquivo como uma coluna
+        lista_de_dados.append(metricas)
+    df = pd.DataFrame(lista_de_dados)
+    # Reordena as colunas para colocar o nome do arquivo no início, se desejar
+    cols = df.columns.tolist()
+    if 'arquivo' in cols:
+        cols = ['arquivo'] + [col for col in cols if col != 'arquivo']
+        df = df[cols]
+    return df.to_markdown(index=False)
+
+def relatorio_estatistico_to_markdown(data: dict) -> str:
+    """Converte o relatório estatístico do projeto para Markdown."""
+    df = pd.DataFrame([data])
+    return df.to_markdown(index=False)
+
+def ck_metrics_to_markdown(data: dict) -> str:
+    """Converte as métricas C&K para Markdown."""
+    lista_de_dados = []
+    for arquivo, classes in data.items():
+        for classe, metricas in classes.items():
+            metricas['arquivo'] = arquivo
+            metricas['classe'] = classe
+            lista_de_dados.append(metricas)
+    df = pd.DataFrame(lista_de_dados)
+    # Reordena as colunas, colocando arquivo e classe no início, se desejar
+    cols = df.columns.tolist()
+    if 'arquivo' in cols and 'classe' in cols:
+        cols = ['arquivo', 'classe'] + [col for col in cols if col not in ['arquivo', 'classe']]
+        df = df[cols]
+    return df.to_markdown(index=False)
+
+def gerar_tabelas(hash_revision, repo_dir, project_name):
+    utils.checkout_git_revision(repo_dir, hash_revision)
+    raw_halstead_report = analytics.get_project_metrics(repo_dir)
+    ck_report = analytics.get_ck_metrics(repo_dir)
+    statistics = analytics.get_project_statistics(raw_halstead_report, hash_revision)
+        
+    st.write(f"Projeto: {project_name}")
+    st.write(f"Hash: {hash_revision}")
+        
+    st.header(f"1. Dados do Projeto (Métricas por Arquivo) - Hash {hash_revision}")
+    st.markdown(projeto_to_markdown(raw_halstead_report), unsafe_allow_html=True)
+    
+    st.header(f"2. Relatório Estatístico do Projeto - Hash {hash_revision}")
+    st.markdown(relatorio_estatistico_to_markdown(statistics), unsafe_allow_html=True)
+    
+    st.header(f"3. Métricas de Chidamber & Kemerer - Hash {hash_revision}")
+    st.markdown(ck_metrics_to_markdown(ck_report), unsafe_allow_html=True) 
+    
+    st.divider()
+    
 def plot_timeline_with_spans(marcos, nome_projeto):
     """
     Generates a timeline plot with specified date markers and shaded spans.
@@ -96,7 +159,7 @@ repo_end = st.sidebar.date_input("Selecione o marco temporal 2 da análise:", fo
 
 #st.sidebar.write("⭐ indicam releases do repositório")
 
-window_span = st.sidebar.slider("Selecione o tamanho da janela de análise (em meses):", 0, 24)
+window_span = st.sidebar.slider("Selecione o tamanho da janela de análise (em meses):", 0, 24, value=8)
 SPAN = datetime.timedelta(days=30*window_span)
 marcos_temporais = [repo_start-SPAN, repo_start, repo_end, repo_end+SPAN]
 
@@ -110,10 +173,22 @@ if prompt:
     st.sidebar.write(prompt)
     
 i=0
+hashes_utilizaveis = []
 for mt in marcos_temporais:
     i=i+1
     st.write(f"Marco {i}: {mt} - {utils.get_commit_hash_by_date(repo_dir, mt, branch=repo_branch)}")
+    hashes_utilizaveis.append(utils.get_commit_hash_by_date(repo_dir, mt, branch=repo_branch))
 
 fig, ax = plot_timeline_with_spans(marcos_temporais, repos_locais)
 st.pyplot(fig)
-    
+
+if rodar_analise:
+    st.title("Análise de Código")
+    st.title(f"Projeto: {repos_locais}")
+    now = datetime.datetime.now()
+    for hash in hashes_utilizaveis:
+        gerar_tabelas(hash, repo_dir, repos_locais)
+    end = datetime.datetime.now()
+    st.divider()
+    elapsed = end - now
+    st.write(f"Time elapsed: {elapsed.seconds} segundos")
