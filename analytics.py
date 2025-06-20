@@ -212,6 +212,7 @@ def get_project_metrics(project_path):
 #         print(f"{metric}: {value}")
 
 def get_project_statistics(metrics_report, revision_id):
+    include_files = False
     """
     Gera estatísticas agregadas a partir de um relatório de métricas por arquivo.
 
@@ -283,19 +284,20 @@ def get_project_statistics(metrics_report, revision_id):
         'mean_maintainability_index': mean_maintainability,
         'mean_complexity': mean_complexity,
     })
-
-    # separa arquivos acima/abaixo da média
     
-    # Início do append de arquivos low quality
-    # for fname, stat in metrics_report.items():
-    #     if stat['average_complexity'] > mean_complexity:
-    #         above_mean_complexity.append(fname)
-    #     if stat['maintainability_index'] < mean_maintainability:
-    #         below_mean_maintainability.append(fname)
+    if include_files == True:
+        pass
+        # separa arquivos acima/abaixo da média
+        
+        # Início do append de arquivos low quality
+        # for fname, stat in metrics_report.items():
+        #     if stat['average_complexity'] > mean_complexity:
+        #         above_mean_complexity.append(fname)
+        #     if stat['maintainability_index'] < mean_maintainability:
+        #         below_mean_maintainability.append(fname)
 
-    # statistics['above_mean_complexity']    = above_mean_complexity
-    # statistics['below_mean_maintainability'] = below_mean_maintainability
-    # Fim do append de arquivos low quality
-
+        # statistics['above_mean_complexity']    = above_mean_complexity
+        # statistics['below_mean_maintainability'] = below_mean_maintainability
+        # Fim do append de arquivos low quality
 
     return statistics     

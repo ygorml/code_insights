@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 
 import chardet
 import sys
@@ -10,23 +11,24 @@ import analytics
 import utils
 from data import repos
 
+# Pipeline:
+# 1. Obtenção dos repositórios (Clone)
+# 2. Obter issues do repositório via API GitHub V4
+# 3. Obter datas dos marcos temporais
+# 4. Nas datas dos marcos temporais, encontrar o hash de revision que atende aquela data
+# 5. Realizar o checkout nas hashes, iterativamente 
+# 6. Calcular Métricas Raw e Halstead para cada revision
+# 7. Calcular Métricas Chidamber & Kemerer para cada revision
+# 8. Consolidar métricas e issues para cada revision
+
 def main():
     sys.stdout.reconfigure(encoding='utf-8')   
     
-    # utils.clone_repo(repos)
-    # issues.get_issues(repos)
-     
-    # repo_demo = {'huggingface': 'transformers'}
-    
-    # Obtenção de Issues via GraphQL API (v4)
-    # transformers_issues = issues.get_issues(repo_demo) 
-    # print(transformers_issues)
-    
-    # Demonstração para Repositório django
+    # Demonstração para 1 arquivo do Repositório django/django
+    django_path = 'clones/django/django'
     # file_path = 'clones/django/django/__init__.py'
     # file_metrics = analytics.get_code_metrics(file_path)
     
-    django_path = 'clones/django/django'
     django_raw_metrics = analytics.get_project_metrics(django_path)
     django_ck_metrics = analytics.get_ck_metrics(django_path)
     django_stats = analytics.get_project_statistics(django_raw_metrics, utils.get_project_checkout_version('django'))

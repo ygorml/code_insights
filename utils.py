@@ -1,9 +1,11 @@
 import os
 import subprocess
 
+from datetime import datetime
 from git import Repo
 from decouple import config
 from pathlib import Path
+from typing import Union
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLONE_BASE_PATH = config('CLONE_REPOS_BASE')
@@ -45,7 +47,7 @@ def listar_repos_clonados() -> list:
                     resultado.append(f"{diretorio.name}/{subdiretorio.name}")
     return resultado
             
-def get_git_revisions(repo_path, n=10):
+def get_git_revisions(repo_path, n=100):
     """
     Get the last n revisions of a git repository.
     
@@ -143,4 +145,75 @@ def get_project_checkout_version(project_name):
         hash = HANDLER.read()
         return hash
     
+# Implementação futura do pipeline
+
+class Clone:
+    def __init__(self, user: str, repository: str):
+        """
+        user: nome do usuário/org no GitHub
+        repository: nome do repositório
+        """
+        self.user = user
+        self.repository = repository
+
+    def run(self, work_dir: str):
+        """
+        Clona o repo em work_dir. Se já existir, pula.
+        """
+        target = os.path.join(work_dir, self.repository)
+        repo_dict = {self.user: self.repository}
+
+        if not os.path.isdir(target):
+            print(f"[Clone] clonando https://github.com/{self.user}/{self.repository}.git → {target}")
+            utils.clone_repo(repo_dict, work_dir)
+        else:
+            print(f"[Clone] {target} já existe, pulando clone")
+
+import subprocess
+from datetime import datetime
+from typing import Union
+
+def get_commit_hash_by_date(
+    repo_path: str,
+    date: Union[str, datetime],
+    branch: str = "master"
+) -> str:
+    """
+    Retorna o hash do último commit anterior ou igual à data fornecida.
+
+    :param repo_path: caminho para o diretório do repositório Git.
+    :param date: data/hora (datetime ou string no formato reconhecido pelo Git,
+                 ex: '2025-06-19 14:30:00' ou ISO '2025-06-19T14:30:00').
+    :param branch: branch onde buscar o commit (padrão: 'master').
+    :return: string com o hash do commit encontrado.
+    :raises ValueError: se não houver commit até aquela data.
+    :raises RuntimeError: se o comando Git falhar.
+    """
+    # converte datetime em string compatível
+    if isinstance(date, datetime):
+        date_str = date.strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        date_str = date
+
+    cmd = [
+        "git", "-C", repo_path,
+        "rev-list", "-1",
+        f"--before={date_str}",
+        branch
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Erro ao executar Git: {e.stderr.strip()}") from e
+
+    commit_hash = proc.stdout.strip()
+    if not commit_hash:
+        raise ValueError(f"Nenhum commit encontrado até {date_str} em {branch}")
+    return commit_hash
     

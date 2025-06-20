@@ -23,6 +23,12 @@ __pycache__/
 # Cloned Repos
 clones/
 
+# Backlog
+backlog/
+
+# Paper
+paper/
+
 # Windows Installer files
 *.cab
 *.msi
