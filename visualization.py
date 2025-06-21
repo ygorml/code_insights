@@ -9,11 +9,17 @@ import utils
 import datetime
 
 import analytics
+import issues
+
+import pdfkit
+import tempfile
+import traceback
 
 def arquivo_unico_to_markdown(data: dict) -> str:
     """Converte os dados de um arquivo único para Markdown."""
     df = pd.DataFrame([data])
-    return df.to_markdown(index=False)
+    return df
+    #return df.to_markdown(index=False)
 
 def projeto_to_markdown(data: dict) -> str:
     """Converte os dados do projeto (métricas por arquivo) para Markdown."""
@@ -28,12 +34,14 @@ def projeto_to_markdown(data: dict) -> str:
     if 'arquivo' in cols:
         cols = ['arquivo'] + [col for col in cols if col != 'arquivo']
         df = df[cols]
-    return df.to_markdown(index=False)
+    return df
+    #return df.to_markdown(index=False)
 
 def relatorio_estatistico_to_markdown(data: dict) -> str:
     """Converte o relatório estatístico do projeto para Markdown."""
     df = pd.DataFrame([data])
-    return df.to_markdown(index=False)
+    return df
+    #return df.to_markdown(index=False)
 
 def ck_metrics_to_markdown(data: dict) -> str:
     """Converte as métricas C&K para Markdown."""
@@ -49,25 +57,48 @@ def ck_metrics_to_markdown(data: dict) -> str:
     if 'arquivo' in cols and 'classe' in cols:
         cols = ['arquivo', 'classe'] + [col for col in cols if col not in ['arquivo', 'classe']]
         df = df[cols]
-    return df.to_markdown(index=False)
+    return df
+    #return df.to_markdown(index=False)
 
 def gerar_tabelas(hash_revision, repo_dir, project_name):
     utils.checkout_git_revision(repo_dir, hash_revision)
     raw_halstead_report = analytics.get_project_metrics(repo_dir)
     ck_report = analytics.get_ck_metrics(repo_dir)
     statistics = analytics.get_project_statistics(raw_halstead_report, hash_revision)
-        
+    
+    repo_org = repo_dir.split("/")[1]
+    repo_name = repo_dir.split("/")[2]
+    
     st.write(f"Projeto: {project_name}")
-    st.write(f"Hash: {hash_revision}")
+    st.write(f"Hash: {hash_revision}")   
+    
+    try:
+        issues_df = issues.get_issues_df({
+            repo_org: repo_name      
+        })
         
-    st.header(f"1. Dados do Projeto (Métricas por Arquivo) - Hash {hash_revision}")
-    st.markdown(projeto_to_markdown(raw_halstead_report), unsafe_allow_html=True)
+        metrics_df = issues.compute_issue_metrics(issues_df)
     
-    st.header(f"2. Relatório Estatístico do Projeto - Hash {hash_revision}")
-    st.markdown(relatorio_estatistico_to_markdown(statistics), unsafe_allow_html=True)
+        st.header("1. Dados do Projeto - Issues")
+        st.dataframe(metrics_df)      
+        
+    except Exception as e_issues:
+            # printa no console e também mostra uma mensagem amigável no Streamlit
+            print("Erro ao processar Issues:", e_issues)
+            traceback.print_exc()
+            st.error(f"Falha ao obter métricas de Issues: {e_issues}")
     
-    st.header(f"3. Métricas de Chidamber & Kemerer - Hash {hash_revision}")
-    st.markdown(ck_metrics_to_markdown(ck_report), unsafe_allow_html=True) 
+    st.header(f"2. Dados do Projeto (Métricas por Arquivo) - Hash {hash_revision}")
+    st.dataframe(projeto_to_markdown(raw_halstead_report))
+    #st.markdown(projeto_to_markdown(raw_halstead_report), unsafe_allow_html=True)
+    
+    st.header(f"3. Relatório Estatístico do Projeto - Hash {hash_revision}")
+    st.dataframe(relatorio_estatistico_to_markdown(statistics))
+    #st.markdown(relatorio_estatistico_to_markdown(statistics), unsafe_allow_html=True)
+    
+    st.header(f"4. Métricas de Chidamber & Kemerer - Hash {hash_revision}")
+    st.dataframe(ck_metrics_to_markdown(ck_report))
+    #st.markdown(ck_metrics_to_markdown(ck_report), unsafe_allow_html=True) 
     
     st.divider()
     
@@ -147,7 +178,7 @@ repo_branch = st.sidebar.selectbox("Selecione a branch:", ['main', 'master'])
 
 raw_halstead = st.sidebar.checkbox("Métricas de Halstead e Raw")
 ck = st.sidebar.checkbox("Métricas de Chidamber & Kemerer")
-issues = st.sidebar.checkbox("Issues via GitHub API v4")
+issues_check = st.sidebar.checkbox("Issues via GitHub API v4")
 
 #repo_start_date = ['2024-12-25', '2024-12-24', '2024-12-23', '2024-12-22', '2024-12-21', '2024-12-20']
 #repo_start = st.sidebar.selectbox("Selecione a data de início da análise:", repo_start_date)
@@ -164,6 +195,8 @@ SPAN = datetime.timedelta(days=30*window_span)
 marcos_temporais = [repo_start-SPAN, repo_start, repo_end, repo_end+SPAN]
 
 rodar_analise = st.sidebar.button("Analisar!")
+
+#baixar = st.sidebar.button("Baixar PDF", on_click=salvar_pdf)
 
 st.sidebar.divider() 
 
@@ -183,12 +216,10 @@ fig, ax = plot_timeline_with_spans(marcos_temporais, repos_locais)
 st.pyplot(fig)
 
 if rodar_analise:
-    st.title("Análise de Código")
-    st.title(f"Projeto: {repos_locais}")
+    st.title(f"Análise de Código - Projeto: {repos_locais}")
     now = datetime.datetime.now()
     for hash in hashes_utilizaveis:
         gerar_tabelas(hash, repo_dir, repos_locais)
     end = datetime.datetime.now()
-    st.divider()
     elapsed = end - now
     st.write(f"Time elapsed: {elapsed.seconds} segundos")
