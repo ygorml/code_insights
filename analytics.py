@@ -10,10 +10,10 @@ from radon.complexity import cc_visit
 import radon.raw as raw
 
 # TODO: Implementar cálculo de métricas para C++ 
-import lizard
+# import lizard
 
 # TODO: Obter hashes dos marcos temporais
-import releasy
+# import releasy
 
 import ast
 import json
@@ -24,9 +24,9 @@ from data import repos
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-"""
-CK Analytics Area
-"""
+# =============================================================================
+# Chidamber & Kemerer Metrics Analysis
+# =============================================================================
 
 class ClassInfo:
     def __init__(self, name):
@@ -153,9 +153,9 @@ def get_ck_metrics(path):
                     print(f"Error in {fullpath}: {e}")
     return results
 
-"""
-Raw and Halstead Analytics Area
-"""
+# =============================================================================
+# Raw and Halstead Metrics Analysis
+# =============================================================================
 
 def get_code_metrics(file_path):
     """Calculate various software quality metrics (RAW and Halstead) for a Python file."""
@@ -204,15 +204,8 @@ def get_project_metrics(project_path):
     
     return all_metrics
 
-# Example usage:
-# project_metrics = analyze_project_metrics('/path/to/your/project')
-# for file_path, metrics in project_metrics.items():
-#     print(f"\nMetrics for {file_path}:")
-#     for metric, value in metrics.items():
-#         print(f"{metric}: {value}")
 
 def get_project_statistics(metrics_report, revision_id):
-    include_files = False
     """
     Gera estatísticas agregadas a partir de um relatório de métricas por arquivo.
 
@@ -230,8 +223,8 @@ def get_project_statistics(metrics_report, revision_id):
                 - maintainability_index (float): índice de manutenibilidade
 
     Returns:
-        dict[str, int | float | list[str]]: Um dicionário com as estatísticas gerais do projeto:
-            - revision_id (int): identificador de revisão (sempre 0 neste momento)
+        dict[str, int | float]: Um dicionário com as estatísticas gerais do projeto:
+            - revision_id: identificador de revisão
             - total_loc (int): soma de todas as linhas de código
             - total_lloc (int): soma de todas as linhas lógicas de código
             - total_sloc (int): soma de todas as linhas de código fonte
@@ -241,63 +234,51 @@ def get_project_statistics(metrics_report, revision_id):
             - n_files (int): número de arquivos processados
             - mean_maintainability_index (float): índice médio de manutenibilidade
             - mean_complexity (float): complexidade média
-            - above_mean_complexity (list[str]): lista de arquivos cuja complexidade está acima da média
-            - below_mean_maintainability (list[str]): lista de arquivos cujo índice de manutenibilidade está abaixo da média
     """
-    statistics = {}
-    below_mean_maintainability = []
-    above_mean_complexity    = []
+    include_files = False
+    # Inicialização de contadores
+    totals = {
+        'loc': 0, 'lloc': 0, 'sloc': 0, 'comments': 0,
+        'multi': 0, 'blank': 0, 'complexity': 0, 'maintainability_index': 0
+    }
+    n_files = 0
 
-    # inicialização de contadores
-    total_loc = total_lloc = total_sloc = total_comments = total_multi = total_blank = 0
-    total_complexity = total_maintainability_index = n_files = 0 
-
-    # soma de todos os valores
+    # Soma de todos os valores
     for fname, stat in metrics_report.items():
-        total_loc                   += stat['loc']
-        total_lloc                  += stat['lloc']
-        total_sloc                  += stat['sloc']
-        total_comments              += stat['comments']
-        total_multi                 += stat['multi']
-        total_blank                 += stat['blank']
-        total_complexity            += stat['average_complexity']
-        total_maintainability_index += stat['maintainability_index']
-        n_files                     += 1
+        totals['loc'] += stat['loc']
+        totals['lloc'] += stat['lloc']
+        totals['sloc'] += stat['sloc']
+        totals['comments'] += stat['comments']
+        totals['multi'] += stat['multi']
+        totals['blank'] += stat['blank']
+        totals['complexity'] += stat['average_complexity']
+        totals['maintainability_index'] += stat['maintainability_index']
+        n_files += 1
 
-    # evita divisão por zero
-    if n_files:
-        mean_maintainability = total_maintainability_index / n_files
-        mean_complexity      = total_complexity / n_files
+    # Calcula médias (evita divisão por zero)
+    if n_files > 0:
+        mean_maintainability = totals['maintainability_index'] / n_files
+        mean_complexity = totals['complexity'] / n_files
     else:
         mean_maintainability = mean_complexity = 0
 
-    # preenche o dicionário de estatísticas
-    statistics.update({
+    # Monta dicionário de estatísticas
+    statistics = {
         'revision_id': revision_id,
-        'total_loc': total_loc,
-        'total_lloc': total_lloc,
-        'total_sloc': total_sloc,
-        'total_comments': total_comments,
-        'total_multi': total_multi,
-        'total_blank': total_blank,
+        'total_loc': totals['loc'],
+        'total_lloc': totals['lloc'],
+        'total_sloc': totals['sloc'],
+        'total_comments': totals['comments'],
+        'total_multi': totals['multi'],
+        'total_blank': totals['blank'],
         'n_files': n_files,
         'mean_maintainability_index': mean_maintainability,
         'mean_complexity': mean_complexity,
-    })
+    }
     
-    if include_files == True:
+    # Futura implementação: adicionar arquivos com qualidade abaixo da média
+    if include_files:
+        # TODO: Implementar lógica para identificar arquivos problemáticos
         pass
-        # separa arquivos acima/abaixo da média
-        
-        # Início do append de arquivos low quality
-        # for fname, stat in metrics_report.items():
-        #     if stat['average_complexity'] > mean_complexity:
-        #         above_mean_complexity.append(fname)
-        #     if stat['maintainability_index'] < mean_maintainability:
-        #         below_mean_maintainability.append(fname)
-
-        # statistics['above_mean_complexity']    = above_mean_complexity
-        # statistics['below_mean_maintainability'] = below_mean_maintainability
-        # Fim do append de arquivos low quality
 
     return statistics     

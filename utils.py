@@ -10,13 +10,38 @@ from typing import Union
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CLONE_BASE_PATH = config('CLONE_REPOS_BASE')
 
-def clone_repo(reposToClone):
-    for key, value in reposToClone.items():
-        github_endpoint = "https://github.com/{}/{}.git".format(key, value)
-        Repo.clone_from(github_endpoint, "{}/{}/{}/".format(CLONE_BASE_PATH, key, value))
+def clone_repo(repos_to_clone: dict) -> bool:
+    """
+    Clona repositórios do GitHub.
+    
+    Args:
+        repos_to_clone: Dict com formato {"owner": "repo_name"}
         
-        revisions = get_git_revisions("{}/{}/{}/".format(CLONE_BASE_PATH, key, value))
-        save_current_revision_repo("{}/{}/{}/".format(CLONE_BASE_PATH, key, value), revisions[0])
+    Returns:
+        bool: True se todos os repos foram clonados com sucesso
+    """
+    success = True
+    
+    for owner, repo_name in repos_to_clone.items():
+        try:
+            github_endpoint = f"https://github.com/{owner}/{repo_name}.git"
+            clone_path = os.path.join(CLONE_BASE_PATH, owner, repo_name)
+            
+            print(f"Clonando {github_endpoint} para {clone_path}")
+            Repo.clone_from(github_endpoint, clone_path)
+            
+            # Salva a revisão atual
+            revisions = get_git_revisions(clone_path)
+            if revisions:
+                save_current_revision_repo(clone_path, revisions[0])
+            else:
+                print(f"Aviso: Não foi possível obter revisões para {owner}/{repo_name}")
+                
+        except Exception as e:
+            print(f"Erro ao clonar {owner}/{repo_name}: {e}")
+            success = False
+            
+    return success
 
 def listar_repos_clonados() -> list:
     """
@@ -47,16 +72,16 @@ def listar_repos_clonados() -> list:
                     resultado.append(f"{diretorio.name}/{subdiretorio.name}")
     return resultado
             
-def get_git_revisions(repo_path, n=100):
+def get_git_revisions(repo_path: str, n: int = 100) -> list:
     """
-    Get the last n revisions of a git repository.
+    Obtém as últimas n revisões de um repositório git.
     
     Args:
-        repo_path (str): Path to the local git repository
-        n (int): Number of revisions to retrieve
+        repo_path: Caminho para o repositório git local
+        n: Número de revisões para recuperar
         
     Returns:
-        list: List of commit hashes, or empty list if error
+        list: Lista de hashes de commit, ou lista vazia em caso de erro
     """
     try:
         # Change to repository directory
@@ -74,23 +99,23 @@ def get_git_revisions(repo_path, n=100):
         if result.returncode == 0:
             return result.stdout.split('\n')
         else:
-            print(f"Error getting revisions: {result.stderr}")
+            print(f"Erro ao obter revisões: {result.stderr}")
             return []
             
     except Exception as e:
-        print(f"Error retrieving git history: {str(e)}")
+        print(f"Erro ao recuperar histórico do git: {str(e)}")
         return []
 
-def checkout_git_revision(repo_path, revision):
+def checkout_git_revision(repo_path: str, revision: str) -> bool:
     """
-    Checkout a specific revision of a local git repository.
+    Faz checkout de uma revisão específica de um repositório git local.
     
     Args:
-        repo_path (str): Path to the local git repository
-        revision (str): Git revision (commit hash, branch name, or tag)
+        repo_path: Caminho para o repositório git local
+        revision: Revisão git (hash do commit, nome da branch, ou tag)
         
     Returns:
-        bool: True if checkout successful, False otherwise
+        bool: True se o checkout foi bem-sucedido, False caso contrário
     """
     try:
         # Change to repository directory
@@ -109,11 +134,11 @@ def checkout_git_revision(repo_path, revision):
             save_current_revision_repo(repo_path, revision)
             return True
         else:
-            print(f"Error checking out revision: {result.stderr}")
+            print(f"Erro no checkout da revisão: {result.stderr}")
             return False
             
     except Exception as e:
-        print(f"Error during git checkout: {str(e)}")
+        print(f"Erro durante checkout do git: {str(e)}")
         return False
     
 def save_current_revision_repo(repo_path: str, revision: str) -> None:
@@ -140,34 +165,53 @@ def copy_project_head(repo_path):
         current_revision = HANDLER.read()
     save_current_revision_repo(repo_path, current_revision)
           
-def get_project_checkout_version(project_name):
-    with open(f"current/{project_name}.ciconf", 'r') as HANDLER:
-        hash = HANDLER.read()
-        return hash
+def get_project_checkout_version(project_name: str) -> str:
+    """Obtém a versão atual do checkout do projeto."""
+    try:
+        with open(f"current/{project_name}.ciconf", 'r') as handler:
+            return handler.read().strip()
+    except FileNotFoundError:
+        print(f"Arquivo de configuração não encontrado para {project_name}")
+        return ""
+    except Exception as e:
+        print(f"Erro ao ler versão do checkout: {e}")
+        return ""
     
-# Implementação futura do pipeline
+# =============================================================================
+# Classes para pipeline futuro
+# =============================================================================
 
 class Clone:
+    """Classe para clonagem de repositórios."""
+    
     def __init__(self, user: str, repository: str):
         """
-        user: nome do usuário/org no GitHub
-        repository: nome do repositório
+        Args:
+            user: nome do usuário/org no GitHub
+            repository: nome do repositório
         """
         self.user = user
         self.repository = repository
 
-    def run(self, work_dir: str):
+    def run(self, work_dir: str) -> bool:
         """
         Clona o repo em work_dir. Se já existir, pula.
+        
+        Args:
+            work_dir: Diretório de trabalho
+            
+        Returns:
+            bool: True se a operação foi bem-sucedida
         """
         target = os.path.join(work_dir, self.repository)
         repo_dict = {self.user: self.repository}
 
         if not os.path.isdir(target):
             print(f"[Clone] clonando https://github.com/{self.user}/{self.repository}.git → {target}")
-            utils.clone_repo(repo_dict, work_dir)
+            return clone_repo(repo_dict)
         else:
             print(f"[Clone] {target} já existe, pulando clone")
+            return True
 
 import subprocess
 from datetime import datetime

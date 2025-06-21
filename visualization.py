@@ -15,50 +15,49 @@ import pdfkit
 import tempfile
 import traceback
 
-def arquivo_unico_to_markdown(data: dict) -> str:
-    """Converte os dados de um arquivo único para Markdown."""
-    df = pd.DataFrame([data])
-    return df
-    #return df.to_markdown(index=False)
+def arquivo_unico_to_dataframe(data: dict) -> pd.DataFrame:
+    """Converte os dados de um arquivo único para DataFrame."""
+    return pd.DataFrame([data])
 
-def projeto_to_markdown(data: dict) -> str:
-    """Converte os dados do projeto (métricas por arquivo) para Markdown."""
-    # Transforma o dicionário em uma lista de dicionários (para o DataFrame)
+def projeto_to_dataframe(data: dict) -> pd.DataFrame:
+    """Converte os dados do projeto (métricas por arquivo) para DataFrame."""
     lista_de_dados = []
     for arquivo, metricas in data.items():
-        metricas['arquivo'] = arquivo  # Adiciona o nome do arquivo como uma coluna
-        lista_de_dados.append(metricas)
+        row_data = metricas.copy()
+        row_data['arquivo'] = arquivo
+        lista_de_dados.append(row_data)
+    
     df = pd.DataFrame(lista_de_dados)
-    # Reordena as colunas para colocar o nome do arquivo no início, se desejar
-    cols = df.columns.tolist()
-    if 'arquivo' in cols:
-        cols = ['arquivo'] + [col for col in cols if col != 'arquivo']
+    
+    # Reordena colunas colocando 'arquivo' primeiro
+    if 'arquivo' in df.columns:
+        cols = ['arquivo'] + [col for col in df.columns if col != 'arquivo']
         df = df[cols]
+    
     return df
-    #return df.to_markdown(index=False)
 
-def relatorio_estatistico_to_markdown(data: dict) -> str:
-    """Converte o relatório estatístico do projeto para Markdown."""
-    df = pd.DataFrame([data])
-    return df
-    #return df.to_markdown(index=False)
+def relatorio_estatistico_to_dataframe(data: dict) -> pd.DataFrame:
+    """Converte o relatório estatístico do projeto para DataFrame."""
+    return pd.DataFrame([data])
 
-def ck_metrics_to_markdown(data: dict) -> str:
-    """Converte as métricas C&K para Markdown."""
+def ck_metrics_to_dataframe(data: dict) -> pd.DataFrame:
+    """Converte as métricas C&K para DataFrame."""
     lista_de_dados = []
     for arquivo, classes in data.items():
         for classe, metricas in classes.items():
-            metricas['arquivo'] = arquivo
-            metricas['classe'] = classe
-            lista_de_dados.append(metricas)
+            row_data = metricas.copy()
+            row_data['arquivo'] = arquivo
+            row_data['classe'] = classe
+            lista_de_dados.append(row_data)
+    
     df = pd.DataFrame(lista_de_dados)
-    # Reordena as colunas, colocando arquivo e classe no início, se desejar
-    cols = df.columns.tolist()
-    if 'arquivo' in cols and 'classe' in cols:
-        cols = ['arquivo', 'classe'] + [col for col in cols if col not in ['arquivo', 'classe']]
-        df = df[cols]
+    
+    # Reordena colunas colocando 'arquivo' e 'classe' primeiro
+    priority_cols = ['arquivo', 'classe']
+    other_cols = [col for col in df.columns if col not in priority_cols]
+    df = df[priority_cols + other_cols]
+    
     return df
-    #return df.to_markdown(index=False)
 
 def gerar_tabelas(hash_revision, repo_dir, project_name):
     utils.checkout_git_revision(repo_dir, hash_revision)
@@ -89,16 +88,13 @@ def gerar_tabelas(hash_revision, repo_dir, project_name):
             st.error(f"Falha ao obter métricas de Issues: {e_issues}")
     
     st.header(f"2. Dados do Projeto (Métricas por Arquivo) - Hash {hash_revision}")
-    st.dataframe(projeto_to_markdown(raw_halstead_report))
-    #st.markdown(projeto_to_markdown(raw_halstead_report), unsafe_allow_html=True)
+    st.dataframe(projeto_to_dataframe(raw_halstead_report))
     
     st.header(f"3. Relatório Estatístico do Projeto - Hash {hash_revision}")
-    st.dataframe(relatorio_estatistico_to_markdown(statistics))
-    #st.markdown(relatorio_estatistico_to_markdown(statistics), unsafe_allow_html=True)
+    st.dataframe(relatorio_estatistico_to_dataframe(statistics))
     
     st.header(f"4. Métricas de Chidamber & Kemerer - Hash {hash_revision}")
-    st.dataframe(ck_metrics_to_markdown(ck_report))
-    #st.markdown(ck_metrics_to_markdown(ck_report), unsafe_allow_html=True) 
+    st.dataframe(ck_metrics_to_dataframe(ck_report)) 
     
     st.divider()
     

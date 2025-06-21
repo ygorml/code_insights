@@ -1,15 +1,9 @@
-import requests
-import json
+import sys
 import os
 
-import chardet
-import sys
-
 # Importação de variáveis e módulos internos da ferramenta
-import issues
 import analytics
 import utils
-from data import repos
 
 # Pipeline:
 # 1. Obtenção dos repositórios (Clone)
@@ -21,32 +15,52 @@ from data import repos
 # 7. Calcular Métricas Chidamber & Kemerer para cada revision
 # 8. Consolidar métricas e issues para cada revision
 
+def analyze_project(project_path: str, project_name: str):
+    """
+    Analisa um projeto e retorna métricas Raw/Halstead e Chidamber & Kemerer.
+    
+    Args:
+        project_path: Caminho para o diretório do projeto
+        project_name: Nome do projeto para identificação
+        
+    Returns:
+        dict: Dicionário com métricas do projeto
+    """
+    try:
+        raw_metrics = analytics.get_project_metrics(project_path)
+        ck_metrics = analytics.get_ck_metrics(project_path)
+        
+        current_version = utils.get_project_checkout_version(project_name)
+        stats = analytics.get_project_statistics(raw_metrics, current_version)
+        
+        return {
+            'raw_metrics': raw_metrics,
+            'ck_metrics': ck_metrics,
+            'statistics': stats,
+            'version': current_version
+        }
+    except Exception as e:
+        print(f"Erro ao analisar projeto {project_name}: {e}")
+        return None
+
 def main():
-    sys.stdout.reconfigure(encoding='utf-8')   
+    """Função principal para demonstração de análise de código."""
+    sys.stdout.reconfigure(encoding='utf-8')
     
-    # Demonstração para 1 arquivo do Repositório django/django
+    # Demonstração para o Repositório django/django
     django_path = 'clones/django/django'
-    # file_path = 'clones/django/django/__init__.py'
-    # file_metrics = analytics.get_code_metrics(file_path)
+    project_name = 'django'
     
-    django_raw_metrics = analytics.get_project_metrics(django_path)
-    django_ck_metrics = analytics.get_ck_metrics(django_path)
-    django_stats = analytics.get_project_statistics(django_raw_metrics, utils.get_project_checkout_version('django'))
+    print(f"Analisando projeto: {project_name}")
+    results = analyze_project(django_path, project_name)
     
-    #django_metrics_head = analytics.get_project_metrics(django_path)
-    #print(json.dumps(all_metrics, indent=4))    
-    #print(django_ck)
-    
-    #django_revisions = analytics.get_git_revisions(django_path, n=100)
-    #print(django_revisions)
-    #res = analytics.checkout_git_revision(django_path, django_revisions[50])
-    #print(f"Operação checkout bem sucedida? {res}\n")
-    
-    #django_metrics_anterior = analytics.get_project_metrics(django_path)
-    #django_stats_anterior = analytics.get_project_statistics(django_metrics_anterior, django_revisions[50])
-    
-    print(django_ck_metrics)
-    print(django_stats)
+    if results:
+        print("Métricas Chidamber & Kemerer:")
+        print(results['ck_metrics'])
+        print("\nEstatísticas do Projeto:")
+        print(results['statistics'])
+    else:
+        print("Falha na análise do projeto.")
     
 if __name__ == "__main__":
     main()
