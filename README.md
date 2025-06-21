@@ -1,23 +1,162 @@
-# code_insights v0.1
+# Code Insights
 
-<img src="logo.png" alt="logo" height="200">
+Uma ferramenta abrangente para análise de métricas de qualidade de código, focada em repositórios Python com suporte para métricas Raw/Halstead, Chidamber & Kemerer, e análise de issues do GitHub.
 
-## 1 INTRODUÇÃO
-No campo da engenharia de software, sistemas de controle de versão tornaram-se essenciais para gerenciar alterações, facilitar a colaboração e manter um histórico do desenvolvimento de projetos. Esses sistemas são fundamentais para acompanhar a evolução do software, permitindo que os desenvolvedores revertam a versões anteriores e compreendam a trajetória das mudanças no código. Contudo, embora o controle de versão seja eficiente na gestão do histórico, a análise da qualidade do código dentro desses sistemas apresenta desafios. Ferramentas existentes muitas vezes carecem da profundidade e da integração necessárias para uma análise completa, especialmente em contextos acadêmicos, onde é importante compreender tendências de qualidade do código ao longo do tempo.
-Este estudo aborda a lacuna na integração entre dados de controle de versão e métricas de qualidade de código, propondo uma ferramenta que una esses elementos de forma eficiente para fins de pesquisa acadêmica. A motivação surge da necessidade de uma solução que seja equilibrada, nem demasiado simples nem excessivamente complexa, oferecendo a profundidade necessária para investigações detalhadas. O problema reside na limitação dos métodos atuais, que não conseguem fornecer a integração adequada para análise de tendências de qualidade de código dentro dos sistemas de controle de versão.
+## 📋 Funcionalidades
 
-## 2 OBJETIVOS
-O objetivo principal desta pesquisa é desenvolver uma ferramenta que integre métricas de qualidade de código com dados de controle de versão. Para isso, foram estabelecidos objetivos específicos e mensuráveis:
-1. Projetar um sistema de extração de dados: Desenvolver um módulo para extrair dados de repositórios de controle de versão, especialmente do Git, utilizando ferramentas como PyDriller e consultas diretas à API GraphQL (v4) do Github.
-2. Implementar métricas de qualidade de código: Incorporar cálculos de diversas métricas de qualidade, incluindo métricas de Halstead (1977) e métricas orientadas a objetos (Chidamber & Kemerer, 1994), potencialmente usando ferramentas como Radon.
-3. Desenvolver uma interface interativa: Criar uma interface usando frameworks como Streamlit, para apresentar as métricas de maneira interativa e acessível ao usuário.
-4. Exportação de dados e relatórios: Assegurar que a ferramenta possa exportar dados e produzir relatórios em formatos adequados para pesquisa, como PDF e JSON.
+- **Análise de Métricas Raw/Halstead**: LOC, LLOC, complexidade ciclomática, índice de manutenibilidade
+- **Métricas Chidamber & Kemerer**: WMC, DIT, NOC, RFC, CBO, LCOM para análise orientada a objetos
+- **Análise de Issues GitHub**: Métricas temporais e estatísticas de issues via API GraphQL
+- **Interface Streamlit**: Dashboard interativo para visualização de dados
+- **Análise Temporal**: Comparação de métricas entre diferentes revisões do git
+- **Exportação de Dados**: DataFrames pandas para análise posterior
 
-## 3 METODOLOGIA
-A metodologia adotada para alcançar esses objetivos segue uma abordagem sistemática e rigorosa, alinhada ao método científico. O processo será iterativo, permitindo ajustes contínuos baseados em testes e feedback.
-1. Coleta de dados: Utilizar o PyDriller para extrair informações de repositórios Git, capturando histórico de commits, alterações e outros dados relevantes de controle de versão.
-2. Cálculo de métricas: Empregar ferramentas de análise estática, como Radon, para calcular métricas de qualidade de código, garantindo a integração entre os dados de controle de versão e as métricas.
-3. Desenvolvimento da interface: Criar um painel interativo com Streamlit, possibilitando uma exploração dinâmica e intuitiva dos dados, com gráficos gerados pelo Matplotlib.
-4. Geração de relatórios: Formatadores os dados analisados em formatos compatíveis com o meio acadêmico, incluindo gráficos, tabelas e análises detalhadas para utilização em artigos e apresentações.
-5. Desenvolvimento, teste e validação: Construir um protótipo, realizar testes com estudos de caso, refinar a ferramenta com base nos resultados e validar seu funcionamento com conjuntos de dados extensos, garantindo robustez e confiabilidade.
-Seguindo essa abordagem estruturada, a ferramenta permitirá uma análise aprofundada da evolução do código em relação às métricas de qualidade, atendendo às necessidades específicas da pesquisa acadêmica em engenharia de software. Essa metodologia garante um processo de desenvolvimento rigoroso, contribuindo de forma significativa para o avanço do campo.
+## 🏗️ Arquitetura
+
+```
+Code Insights
+├── main.py              # Ponto de entrada e demonstração
+├── analytics.py         # Motores de cálculo de métricas
+├── visualization.py     # Interface Streamlit e processamento de dados
+├── issues.py           # Integração com API GitHub
+├── utils.py            # Utilitários git e gerenciamento de arquivos
+├── data.py             # Configuração de repositórios
+└── requirements.txt    # Dependências do projeto
+```
+
+## 🔄 Pipeline de Análise
+
+1. **Clonagem de Repositórios**: Download automático de repos GitHub
+2. **Obtenção de Issues**: Consulta via API GraphQL GitHub V4
+3. **Definição de marcos temporais**: Seleção de datas para análise
+4. **Checkout por revisão**: Navegação temporal no histórico git
+5. **Cálculo de Métricas Raw/Halstead**: Para cada revisão
+6. **Cálculo de Métricas C&K**: Análise orientada a objetos
+7. **Consolidação**: Agregação de métricas e issues por revisão
+
+## 🚀 Instalação
+
+### Pré-requisitos
+- Python 3.8+
+- Git
+- Acesso à internet para API GitHub
+
+### Configuração
+
+1. **Clone o repositório**:
+```bash
+git clone <url-do-repositorio>
+cd code_insights
+```
+
+2. **Instale as dependências**:
+```bash
+pip install -r requirements.txt
+```
+
+3. **Configure variáveis de ambiente**:
+Crie um arquivo `.env` na raiz do projeto:
+```env
+API_KEY=your_github_token_here
+GITHUB_API_URL=https://api.github.com/graphql
+CLONE_REPOS_BASE=/path/to/clone/directory
+```
+
+### Obtenção do Token GitHub
+1. Acesse GitHub → Settings → Developer settings → Personal access tokens
+2. Gere um novo token com permissões de leitura para repositórios
+3. Adicione o token no arquivo `.env`
+
+## 📖 Uso
+
+### Análise Básica (CLI)
+```bash
+python main.py
+```
+
+### Interface Web (Streamlit)
+```bash
+streamlit run visualization.py
+```
+
+### Uso Programático
+```python
+import analytics
+import utils
+
+# Clona um repositório
+utils.clone_repo({"owner": "repo_name"})
+
+# Analisa métricas
+project_path = "clones/owner/repo_name"
+raw_metrics = analytics.get_project_metrics(project_path)
+ck_metrics = analytics.get_ck_metrics(project_path)
+stats = analytics.get_project_statistics(raw_metrics, "main")
+```
+
+## 📊 Métricas Disponíveis
+
+### Raw & Halstead Metrics
+- **LOC**: Total de linhas de código
+- **LLOC**: Linhas lógicas de código  
+- **SLOC**: Linhas de código fonte
+- **Comments**: Número de comentários
+- **Complexity**: Complexidade ciclomática média
+- **Maintainability Index**: Índice de manutenibilidade
+
+### Chidamber & Kemerer Metrics
+- **WMC**: Weighted Methods per Class
+- **DIT**: Depth of Inheritance Tree
+- **NOC**: Number of Children
+- **RFC**: Response for a Class
+- **CBO**: Coupling Between Objects
+- **LCOM**: Lack of Cohesion of Methods
+
+### Issues Metrics
+- **Total Issues**: Número total de issues abertas
+- **Duration**: Período de atividade do projeto
+- **Issue Rate**: Taxa de criação de issues
+- **Temporal Analysis**: Distribuição temporal de issues
+
+## 🔧 API Reference
+
+### analytics.py
+- `get_project_metrics(path)`: Métricas Raw/Halstead
+- `get_ck_metrics(path)`: Métricas Chidamber & Kemerer
+- `get_project_statistics(metrics, revision)`: Estatísticas agregadas
+
+### utils.py
+- `clone_repo(repos_dict)`: Clonagem de repositórios
+- `checkout_git_revision(path, hash)`: Checkout temporal
+- `get_commit_hash_by_date(path, date)`: Hash por data
+
+### issues.py
+- `get_issues_df(repos)`: Issues via API GitHub
+- `compute_issue_metrics(df)`: Métricas temporais de issues
+
+## 🎯 Casos de Uso
+
+1. **Pesquisa Acadêmica**: Análise evolutiva de qualidade de código
+2. **Code Review**: Identificação de áreas problemáticas
+3. **Refatoração**: Métricas antes/depois de melhorias
+4. **Benchmarking**: Comparação entre projetos
+5. **Monitoramento**: Acompanhamento contínuo da qualidade
+
+## 🔍 Exemplo de Análise
+
+```python
+# Análise completa de um projeto
+from main import analyze_project
+
+results = analyze_project("clones/django/django", "django")
+
+print("Métricas C&K:")
+for file_path, classes in results['ck_metrics'].items():
+    for class_name, metrics in classes.items():
+        print(f"{class_name}: WMC={metrics['WMC']}, DIT={metrics['DIT']}")
+
+print("Estatísticas Gerais:")
+stats = results['statistics']
+print(f"Total LOC: {stats['total_loc']}")
+print(f"Complexidade Média: {stats['mean_complexity']:.2f}")
+```
