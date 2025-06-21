@@ -16,11 +16,28 @@ import tempfile
 import traceback
 
 def arquivo_unico_to_dataframe(data: dict) -> pd.DataFrame:
-    """Converte os dados de um arquivo único para DataFrame."""
+    """
+    Converte os dados de um arquivo único para DataFrame.
+    
+    Args:
+        data: Dicionário com métricas de um arquivo
+        
+    Returns:
+        pd.DataFrame: DataFrame com uma linha contendo as métricas do arquivo
+    """
     return pd.DataFrame([data])
 
 def projeto_to_dataframe(data: dict) -> pd.DataFrame:
-    """Converte os dados do projeto (métricas por arquivo) para DataFrame."""
+    """
+    Converte os dados do projeto (métricas por arquivo) para DataFrame.
+    
+    Args:
+        data: Dicionário com formato {arquivo: {métrica: valor}}
+        
+    Returns:
+        pd.DataFrame: DataFrame com métricas organizadas por arquivo,
+                     com coluna 'arquivo' como primeira coluna
+    """
     lista_de_dados = []
     for arquivo, metricas in data.items():
         row_data = metricas.copy()
@@ -37,11 +54,28 @@ def projeto_to_dataframe(data: dict) -> pd.DataFrame:
     return df
 
 def relatorio_estatistico_to_dataframe(data: dict) -> pd.DataFrame:
-    """Converte o relatório estatístico do projeto para DataFrame."""
+    """
+    Converte o relatório estatístico do projeto para DataFrame.
+    
+    Args:
+        data: Dicionário com estatísticas agregadas do projeto
+        
+    Returns:
+        pd.DataFrame: DataFrame com uma linha contendo as estatísticas do projeto
+    """
     return pd.DataFrame([data])
 
 def ck_metrics_to_dataframe(data: dict) -> pd.DataFrame:
-    """Converte as métricas C&K para DataFrame."""
+    """
+    Converte as métricas Chidamber & Kemerer para DataFrame.
+    
+    Args:
+        data: Dicionário com formato {arquivo: {classe: {métrica: valor}}}
+        
+    Returns:
+        pd.DataFrame: DataFrame com métricas C&K organizadas por arquivo e classe,
+                     com colunas 'arquivo' e 'classe' como primeiras colunas
+    """
     lista_de_dados = []
     for arquivo, classes in data.items():
         for classe, metricas in classes.items():
@@ -59,7 +93,26 @@ def ck_metrics_to_dataframe(data: dict) -> pd.DataFrame:
     
     return df
 
-def gerar_tabelas(hash_revision, repo_dir, project_name):
+def gerar_tabelas(hash_revision: str, repo_dir: str, project_name: str) -> None:
+    """
+    Gera tabelas de métricas no Streamlit.
+    
+    Esta função processa e exibe no Streamlit:
+    1. Métricas de issues do GitHub
+    2. Métricas Raw/Halstead por arquivo
+    3. Estatísticas gerais do projeto
+    4. Métricas Chidamber & Kemerer
+    
+    Args:
+        hash_revision: Hash da revisão do git para análise
+        repo_dir: Caminho para o diretório do repositório
+        project_name: Nome do projeto para exibição
+        
+    Side Effects:
+        - Faz checkout da revisão especificada
+        - Exibe tabelas e gráficos no Streamlit
+        - Pode exibir mensagens de erro em caso de falha
+    """
     utils.checkout_git_revision(repo_dir, hash_revision)
     raw_halstead_report = analytics.get_project_metrics(repo_dir)
     ck_report = analytics.get_ck_metrics(repo_dir)
@@ -82,7 +135,6 @@ def gerar_tabelas(hash_revision, repo_dir, project_name):
         st.dataframe(metrics_df)      
         
     except Exception as e_issues:
-            # printa no console e também mostra uma mensagem amigável no Streamlit
             print("Erro ao processar Issues:", e_issues)
             traceback.print_exc()
             st.error(f"Falha ao obter métricas de Issues: {e_issues}")
@@ -98,22 +150,32 @@ def gerar_tabelas(hash_revision, repo_dir, project_name):
     
     st.divider()
     
-def plot_timeline_with_spans(marcos, nome_projeto):
+def plot_timeline_with_spans(marcos: list, nome_projeto: str) -> tuple:
     """
-    Generates a timeline plot with specified date markers and shaded spans.
-
+    Gera um gráfico de linha do tempo com marcos temporais e períodos sombreados.
+    
     Args:
-        marcos (list): A list of datetime.date objects representing the key
-                       temporal milestones. Expected order is [start_span,
-                       start_date, end_date, end_span].
+        marcos: Lista de objetos datetime.date representando marcos temporais.
+               Ordem esperada: [inicio_span, data_inicio, data_fim, fim_span]
+        nome_projeto: Nome do projeto para exibição no título
+        
+    Returns:
+        tuple: (figura_matplotlib, eixos_matplotlib) para posterior manipulação
+        
+    Note:
+        O gráfico mostra:
+        - Pontos azuis para os dois primeiros marcos
+        - Pontos vermelhos para os dois últimos marcos  
+        - Áreas sombreadas representando os períodos de análise
+        - Linhas verticais tracejadas nos marcos principais
     """
-    # Convert datetime.date objects to datetime.datetime objects for plotting
+    # Converte objetos datetime.date para datetime.datetime para plotagem
     marcos_dt = [datetime.datetime.combine(date, datetime.time.min) for date in marcos]
 
-    # Calculate the span duration from the provided markers
+    # Calcula a duração do span a partir dos marcos fornecidos
     SPAN = marcos[1] - marcos[0]
 
-    # Create a figure and a set of subplots
+    # Cria a figura e subplots
     fig, ax = plt.subplots(figsize=(12, 2))
 
     # Plota os pontos do lado esquerdo (primeiros dois marcos) em azul

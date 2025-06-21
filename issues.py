@@ -11,8 +11,24 @@ def get_issues_df(query_repos: dict) -> pd.DataFrame:
     """
     Consulta a API GraphQL do GitHub e retorna um DataFrame com as issues abertas dos repositórios.
     
-    query_repos: dict onde a chave é o owner e o valor é o nome do repo, ex: {"my-org": "my-repo", ...}
-    Utiliza as variáveis globais `api_key` e `api_url` para autenticação e requisição.
+    Args:
+        query_repos: Dicionário onde a chave é o owner e o valor é o nome do repo,
+                    ex: {"my-org": "my-repo", "user": "project"}
+                    
+    Returns:
+        pd.DataFrame: DataFrame contendo:
+            - repo: Nome do repositório no formato "owner/repo"
+            - number: Número da issue
+            - title: Título da issue
+            - created_at: Data de criação da issue (tipo datetime)
+            
+    Note:
+        Utiliza as variáveis globais `api_key` e `api_url` para autenticação.
+        Issues com erro são ignoradas e o erro é reportado no console.
+        Retorna DataFrame vazio se nenhuma issue for encontrada.
+        
+    Raises:
+        requests.RequestException: Em caso de erro na requisição HTTP
     """
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -79,16 +95,26 @@ def get_issues_df(query_repos: dict) -> pd.DataFrame:
 
 def compute_issue_metrics(issues_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Calcula métricas gerais de issues para cada repositório utilizando todo o período registrado nas issues.
+    Calcula métricas gerais de issues para cada repositório utilizando todo o período registrado.
     
-    Para cada repositório, a função retorna:
-      - total_issues: Total de issues abertas.
-      - first_issue_date: Data da criação da primeira issue.
-      - last_issue_date: Data da criação da última issue.
-      - duration_days: Duração (em dias) entre a primeira e a última issue.
-      - duration_months: Duração em meses (aproximada, considerando 30 dias/mês).
-      - avg_issues_per_month: Média de issues por mês.
-      - median_interval_days: Mediana do intervalo (em dias) entre a criação de issues consecutivas (caso haja mais de uma issue).
+    Args:
+        issues_df: DataFrame com issues obtido de get_issues_df()
+        
+    Returns:
+        pd.DataFrame: DataFrame com métricas por repositório contendo:
+            - repo: Nome do repositório
+            - total_issues: Total de issues abertas
+            - first_issue_date: Data da criação da primeira issue
+            - last_issue_date: Data da criação da última issue
+            - duration_days: Duração em dias entre primeira e última issue
+            - duration_months: Duração em meses (aproximada, 30 dias/mês)
+            - avg_issues_per_month: Média de issues por mês
+            - median_interval_days: Mediana do intervalo entre issues consecutivas
+            
+    Note:
+        - Se duration_days for zero, considera 1 mês para evitar divisão por zero
+        - median_interval_days será None se houver apenas uma issue no repositório
+        - Agrupa issues por repositório para cálculo das métricas
     """
     rows = []
     for repo, grp in issues_df.groupby("repo"):
@@ -97,11 +123,11 @@ def compute_issue_metrics(issues_df: pd.DataFrame) -> pd.DataFrame:
         last_issue_date = grp["created_at"].max()
         duration_days = (last_issue_date - first_issue_date).days
         
-        # Se a duração for zero (ou seja, apenas uma issue ou todas na mesma data), consideramos 1 mês para evitar divisão por zero.
+        # Evita divisão por zero: se duração for zero, considera 1 mês
         duration_months = duration_days / 30 if duration_days > 0 else 1
         avg_issues_per_month = total_issues / duration_months
         
-        # Calcula a mediana dos intervalos entre as issues, em dias (caso haja mais de uma issue)
+        # Calcula mediana dos intervalos entre issues consecutivas
         sorted_dates = grp["created_at"].sort_values()
         if len(sorted_dates) > 1:
             intervals = sorted_dates.diff().dropna().dt.days

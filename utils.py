@@ -45,17 +45,26 @@ def clone_repo(repos_to_clone: dict) -> bool:
 
 def listar_repos_clonados() -> list:
     """
-    Busca em 'caminho' os diretórios e, para cada um, suas subpastas imediatas.
-    Retorna uma lista com a formatação 'diretório/subdiretório'.
+    Lista todos os repositórios clonados no diretório base.
     
-    Exemplo:
-    - clones/
-       ├── ccxt/
-       │    └── ccxt/
-       └── huggingface/
-            └── transformers/
+    Busca recursivamente por estruturas de diretório no formato 'owner/repo'
+    dentro do caminho base definido pela variável CLONE_BASE_PATH.
     
-    Retorno: ['ccxt/ccxt', 'huggingface/transformers']
+    Returns:
+        list: Lista de strings no formato 'owner/repo' dos repositórios encontrados
+        
+    Example:
+        Estrutura de diretórios:
+        clones/
+        ├── ccxt/
+        │    └── ccxt/
+        └── huggingface/
+             └── transformers/
+        
+        Retorno: ['ccxt/ccxt', 'huggingface/transformers']
+        
+    Note:
+        Utiliza a variável global CLONE_BASE_PATH como diretório base
     """
     
     caminho = CLONE_BASE_PATH
@@ -143,8 +152,15 @@ def checkout_git_revision(repo_path: str, revision: str) -> bool:
     
 def save_current_revision_repo(repo_path: str, revision: str) -> None:
     """
-    Salva a revisão informada (hash identificador) num arquivo:
-        <BASE_DIR>/current/<nome_do_repo>.ciconf
+    Salva a revisão atual do repositório em arquivo de configuração.
+    
+    Args:
+        repo_path: Caminho para o diretório do repositório
+        revision: Hash da revisão ou identificador do commit
+        
+    Note:
+        Cria arquivo no formato: <BASE_DIR>/current/<nome_do_repo>.ciconf
+        O diretório 'current' é criado automaticamente se não existir
     """
     # Extrai só o nome da pasta final do repo_path
     repo_name = os.path.basename(os.path.normpath(repo_path))
@@ -160,13 +176,33 @@ def save_current_revision_repo(repo_path: str, revision: str) -> None:
     with open(file_path, "w", encoding="utf-8") as handler:
         handler.write(revision)
         
-def copy_project_head(repo_path):
-    with open(f"{repo_path}/.git/HEAD", 'r') as HANDLER:
-        current_revision = HANDLER.read()
+def copy_project_head(repo_path: str) -> None:
+    """
+    Copia a revisão HEAD atual do repositório para arquivo de configuração.
+    
+    Args:
+        repo_path: Caminho para o diretório do repositório git
+        
+    Note:
+        Lê diretamente o arquivo .git/HEAD e salva usando save_current_revision_repo()
+    """
+    with open(f"{repo_path}/.git/HEAD", 'r') as handler:
+        current_revision = handler.read()
     save_current_revision_repo(repo_path, current_revision)
           
 def get_project_checkout_version(project_name: str) -> str:
-    """Obtém a versão atual do checkout do projeto."""
+    """
+    Obtém a versão atual do checkout do projeto.
+    
+    Args:
+        project_name: Nome do projeto (usado como nome do arquivo de configuração)
+        
+    Returns:
+        str: Hash da revisão atual, ou string vazia em caso de erro
+        
+    Note:
+        Lê arquivo current/{project_name}.ciconf criado por save_current_revision_repo()
+    """
     try:
         with open(f"current/{project_name}.ciconf", 'r') as handler:
             return handler.read().strip()
@@ -224,16 +260,24 @@ def get_commit_hash_by_date(
 ) -> str:
     """
     Retorna o hash do último commit anterior ou igual à data fornecida.
-
-    :param repo_path: caminho para o diretório do repositório Git.
-    :param date: data/hora (datetime ou string no formato reconhecido pelo Git,
-                 ex: '2025-06-19 14:30:00' ou ISO '2025-06-19T14:30:00').
-    :param branch: branch onde buscar o commit (padrão: 'master').
-    :return: string com o hash do commit encontrado.
-    :raises ValueError: se não houver commit até aquela data.
-    :raises RuntimeError: se o comando Git falhar.
+    
+    Args:
+        repo_path: Caminho para o diretório do repositório Git
+        date: Data/hora como datetime ou string no formato reconhecido pelo Git
+             Ex: '2025-06-19 14:30:00', '2025-06-19T14:30:00'
+        branch: Branch onde buscar o commit (padrão: 'master')
+        
+    Returns:
+        str: Hash do commit encontrado
+        
+    Raises:
+        ValueError: Se não houver commit até a data especificada
+        RuntimeError: Se o comando Git falhar
+        
+    Note:
+        Utiliza o comando 'git rev-list --before' para encontrar o commit
     """
-    # converte datetime em string compatível
+    # Converte datetime para string compatível com git
     if isinstance(date, datetime):
         date_str = date.strftime("%Y-%m-%d %H:%M:%S")
     else:

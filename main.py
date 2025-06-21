@@ -44,7 +44,16 @@ def analyze_project(project_path: str, project_name: str):
         return None
 
 def main():
-    """Função principal para demonstração de análise de código."""
+    """
+    Função principal para demonstração de análise de código.
+    
+    Executa uma análise completa do projeto Django localizado em 'clones/django/django',
+    incluindo métricas Raw/Halstead, Chidamber & Kemerer e estatísticas gerais.
+    Os resultados são exibidos no console.
+    
+    Raises:
+        Exception: Se houver erro na análise do projeto
+    """
     sys.stdout.reconfigure(encoding='utf-8')
     
     # Demonstração para o Repositório django/django
