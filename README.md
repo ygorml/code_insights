@@ -1,5 +1,12 @@
 # Code Insights
 
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://python.org)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-pytest-orange.svg)](tests/)
+[![Code Quality](https://img.shields.io/badge/code%20quality-analyzed-brightgreen.svg)](#métricas-disponíveis)
+[![Streamlit](https://img.shields.io/badge/interface-streamlit-red.svg)](https://streamlit.io)
+[![GitHub Issues](https://img.shields.io/badge/issues-GitHub%20API-blue.svg)](https://docs.github.com/en/rest)
+
 Uma ferramenta abrangente para análise de métricas de qualidade de código, focada em repositórios Python com suporte para métricas Raw/Halstead, Chidamber & Kemerer, e análise de issues do GitHub.
 
 ## 📋 Funcionalidades
@@ -54,7 +61,12 @@ cd code_insights
 pip install -r requirements.txt
 ```
 
-3. **Configure variáveis de ambiente**:
+3. **Instale dependências de teste (opcional)**:
+```bash
+pip install -r test-requirements.txt
+```
+
+4. **Configure variáveis de ambiente**:
 Crie um arquivo `.env` na raiz do projeto:
 ```env
 API_KEY=your_github_token_here
@@ -134,6 +146,36 @@ stats = analytics.get_project_statistics(raw_metrics, "main")
 - `get_issues_df(repos)`: Issues via API GitHub
 - `compute_issue_metrics(df)`: Métricas temporais de issues
 
+## 🧪 Testes
+
+### Executar Testes
+```bash
+# Executar todos os testes
+pytest
+
+# Executar testes com cobertura
+pytest --cov=. --cov-report=html
+
+# Executar testes específicos
+pytest tests/test_analytics.py -v
+
+# Executar testes por categoria
+pytest -m unit      # Testes unitários
+pytest -m integration # Testes de integração
+```
+
+### Estrutura de Testes
+```
+tests/
+├── __init__.py
+├── test_analytics.py      # Testes do módulo analytics
+├── test_utils.py          # Testes do módulo utils
+├── test_issues.py         # Testes do módulo issues
+├── test_main.py           # Testes da função principal
+├── test_visualization.py  # Testes da interface Streamlit
+└── test_data.py           # Testes de configuração de dados
+```
+
 ## 🎯 Casos de Uso
 
 1. **Pesquisa Acadêmica**: Análise evolutiva de qualidade de código
@@ -160,3 +202,29 @@ stats = results['statistics']
 print(f"Total LOC: {stats['total_loc']}")
 print(f"Complexidade Média: {stats['mean_complexity']:.2f}")
 ```
+
+## 📊 Cobertura de Testes
+
+O projeto inclui uma suíte abrangente de testes cobrindo:
+
+- **Testes Unitários**: Validação de funções individuais
+- **Testes de Integração**: Verificação de interação entre módulos
+- **Testes de API**: Validação de chamadas para GitHub API
+- **Testes de Análise**: Verificação de cálculos de métricas
+- **Testes de Interface**: Validação de componentes Streamlit
+
+## 🤝 Contribuindo
+
+1. Faça um fork do projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Execute os testes (`pytest`)
+4. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+5. Push para a branch (`git push origin feature/AmazingFeature`)
+6. Abra um Pull Request
+
+### Padrões de Desenvolvimento
+
+- **Cobertura de Testes**: Manter cobertura > 80%
+- **Documentação**: Docstrings em todas as funções públicas
+- **Estilo de Código**: Seguir PEP 8
+- **Testes**: Adicionar testes para novas funcionalidades
