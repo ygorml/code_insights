@@ -289,6 +289,95 @@ Gera tabelas de métricas no Streamlit.
 - Exibe tabelas no Streamlit
 - Pode exibir mensagens de erro
 
+##### `exportar_dados_csv(hash_revision: str, repo_dir: str, project_name: str, output_dir: str = "exports") -> dict`
+Exporta todos os dados de métricas para arquivos CSV.
+
+**Parâmetros**:
+- `hash_revision`: Hash da revisão do git para análise
+- `repo_dir`: Caminho para o diretório do repositório
+- `project_name`: Nome do projeto
+- `output_dir`: Diretório de saída para os arquivos CSV (padrão: "exports")
+
+**Retorna**:
+```python
+{
+    'issues': str,           # Caminho do CSV de métricas de issues
+    'metricas_arquivo': str, # Caminho do CSV de métricas por arquivo
+    'estatisticas': str,     # Caminho do CSV de estatísticas do projeto
+    'ck_metricas': str      # Caminho do CSV de métricas C&K
+}
+```
+
+**Side Effects**:
+- Cria automaticamente o diretório de saída e todos os subdiretórios necessários
+- Gera arquivos CSV com métricas do projeto (issues, métricas por arquivo, estatísticas, C&K)
+- Faz checkout da revisão especificada
+
+**Melhorias Recentes**:
+- Criação automática de diretórios aninhados para evitar erros de "diretório não existe"
+- Suporte robusto para estruturas de pastas complexas (ex: `exports/huggingface/subdir`)
+
+**Exemplo**:
+```python
+arquivos = exportar_dados_csv(
+    "abc123def", 
+    "clones/django/django", 
+    "django-project"
+)
+print(f"Métricas salvas em: {arquivos['metricas_arquivo']}")
+```
+
+##### `criar_csv_agregado(dados_por_hash: list, project_name: str, output_dir: str = "exports") -> str`
+Cria um CSV agregado com métricas de evolução temporal do projeto.
+
+**Parâmetros**:
+- `dados_por_hash`: Lista de dicionários com dados de cada hash
+- `project_name`: Nome do projeto
+- `output_dir`: Diretório de saída para o arquivo CSV (padrão: "exports")
+
+**Retorna**:
+- `str`: Caminho do arquivo CSV agregado gerado
+
+**Side Effects**:
+- Cria arquivo CSV com métricas agregadas por hash/marco temporal
+- Inclui dados de estatísticas, issues e métricas C&K resumidas
+
+**Formato do CSV Agregado**:
+```csv
+hash,hash_short,timestamp,total_loc,total_lloc,total_sloc,total_comments,total_blank,n_files,mean_maintainability_index,mean_complexity,total_issues,avg_issues_per_month,median_interval_days,total_classes,avg_wmc,avg_dit,avg_noc,avg_rfc,avg_cbo,avg_lcom
+```
+
+**Exemplo**:
+```python
+dados_hashes = [
+    {'hash': 'abc123', 'dados': dados_hash1},
+    {'hash': 'def456', 'dados': dados_hash2}
+]
+arquivo_agregado = criar_csv_agregado(dados_hashes, "django-project")
+print(f"CSV de evolução temporal: {arquivo_agregado}")
+```
+
+##### `coletar_dados_para_agregacao(hash_revision: str, repo_dir: str, project_name: str) -> dict`
+Coleta todos os dados de métricas para um hash específico.
+
+**Parâmetros**:
+- `hash_revision`: Hash da revisão do git para análise
+- `repo_dir`: Caminho para o diretório do repositório
+- `project_name`: Nome do projeto
+
+**Retorna**:
+```python
+{
+    'estatisticas': dict,        # Estatísticas agregadas do projeto
+    'ck_metrics': pd.DataFrame,  # Métricas C&K em DataFrame
+    'issues_metrics': pd.DataFrame  # Métricas de issues (se disponível)
+}
+```
+
+**Side Effects**:
+- Faz checkout da revisão especificada
+- Calcula métricas Raw/Halstead, C&K e issues
+
 ##### `plot_timeline_with_spans(marcos: list, nome_projeto: str) -> tuple`
 Gera gráfico de timeline com marcos temporais.
 
@@ -323,11 +412,12 @@ print(f"Arquivos analisados: {stats['n_files']}")
 print(f"Complexidade média: {stats['mean_complexity']:.2f}")
 ```
 
-### Análise Temporal
+### Análise Temporal com Exportação CSV e Agregação
 ```python
 import datetime
 import utils
 import analytics
+from visualization import exportar_dados_csv, coletar_dados_para_agregacao, criar_csv_agregado
 
 repo_path = "clones/django/django"
 
@@ -340,6 +430,8 @@ dates = [
 ]
 
 results = []
+dados_para_agregacao = []
+
 for date in dates:
     # Obter hash da data
     hash_commit = utils.get_commit_hash_by_date(repo_path, date, "main")
@@ -351,16 +443,32 @@ for date in dates:
     raw_metrics = analytics.get_project_metrics(repo_path)
     stats = analytics.get_project_statistics(raw_metrics, hash_commit)
     
+    # Exportar para CSV individuais
+    csv_files = exportar_dados_csv(hash_commit, repo_path, "django")
+    
+    # Coletar dados para agregação
+    dados_hash = coletar_dados_para_agregacao(hash_commit, repo_path, "django")
+    dados_para_agregacao.append({
+        'hash': hash_commit,
+        'dados': dados_hash
+    })
+    
     results.append({
         'date': date,
         'hash': hash_commit,
         'loc': stats['total_loc'],
-        'complexity': stats['mean_complexity']
+        'complexity': stats['mean_complexity'],
+        'csv_files': csv_files
     })
+
+# Gerar CSV agregado de evolução temporal
+arquivo_agregado = criar_csv_agregado(dados_para_agregacao, "django")
+print(f"CSV agregado gerado: {arquivo_agregado}")
 
 # Análise de evolução
 for result in results:
     print(f"{result['date']}: LOC={result['loc']}, Complexity={result['complexity']:.2f}")
+    print(f"  CSVs individuais: {list(result['csv_files'].keys())}")
 ```
 
 ### Análise de Issues

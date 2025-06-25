@@ -14,6 +14,7 @@ import issues
 import pdfkit
 import tempfile
 import traceback
+import csv
 
 def arquivo_unico_to_dataframe(data: dict) -> pd.DataFrame:
     """
@@ -92,6 +93,206 @@ def ck_metrics_to_dataframe(data: dict) -> pd.DataFrame:
     df = df[priority_cols + other_cols]
     
     return df
+
+def exportar_dados_csv(hash_revision: str, repo_dir: str, project_name: str, output_dir: str = "exports") -> dict:
+    """
+    Exporta todos os dados de métricas para arquivos CSV.
+    
+    Args:
+        hash_revision: Hash da revisão do git para análise
+        repo_dir: Caminho para o diretório do repositório
+        project_name: Nome do projeto
+        output_dir: Diretório de saída para os arquivos CSV
+        
+    Returns:
+        dict: Dicionário com os caminhos dos arquivos CSV gerados
+        
+    Side Effects:
+        - Cria automaticamente o diretório de saída e todos os subdiretórios necessários
+        - Gera arquivos CSV com métricas do projeto (issues, métricas por arquivo, estatísticas, C&K)
+        - Faz checkout da revisão git especificada
+        
+    Note:
+        A função agora garante a criação segura de diretórios aninhados, evitando erros
+        de "diretório não existe" durante a exportação de arquivos CSV.
+    """
+    import os
+    
+    # Cria diretório de saída e todos os subdiretórios necessários
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Obtém os dados das métricas
+    utils.checkout_git_revision(repo_dir, hash_revision)
+    raw_halstead_report = analytics.get_project_metrics(repo_dir)
+    ck_report = analytics.get_ck_metrics(repo_dir)
+    statistics = analytics.get_project_statistics(raw_halstead_report, hash_revision)
+    
+    repo_org = repo_dir.split("/")[1] if len(repo_dir.split("/")) > 1 else "unknown"
+    repo_name = repo_dir.split("/")[2] if len(repo_dir.split("/")) > 2 else project_name
+    
+    # Nome base para os arquivos
+    base_filename = f"{project_name}_{hash_revision[:8]}"
+    
+    arquivos_gerados = {}
+    
+    try:
+        # Exporta métricas de issues
+        issues_df = issues.get_issues_df({repo_org: repo_name})
+        metrics_df = issues.compute_issue_metrics(issues_df)
+        
+        issues_path = os.path.join(output_dir, f"{base_filename}_issues.csv")
+        os.makedirs(os.path.dirname(issues_path), exist_ok=True)
+        metrics_df.to_csv(issues_path, index=False, encoding='utf-8')
+        arquivos_gerados['issues'] = issues_path
+        
+    except Exception as e:
+        print(f"Erro ao exportar métricas de issues: {e}")
+        arquivos_gerados['issues'] = None
+    
+    # Exporta métricas por arquivo
+    projeto_path = os.path.join(output_dir, f"{base_filename}_metricas_arquivo.csv")
+    os.makedirs(os.path.dirname(projeto_path), exist_ok=True)
+    projeto_to_dataframe(raw_halstead_report).to_csv(projeto_path, index=False, encoding='utf-8')
+    arquivos_gerados['metricas_arquivo'] = projeto_path
+    
+    # Exporta estatísticas do projeto
+    stats_path = os.path.join(output_dir, f"{base_filename}_estatisticas.csv")
+    os.makedirs(os.path.dirname(stats_path), exist_ok=True)
+    relatorio_estatistico_to_dataframe(statistics).to_csv(stats_path, index=False, encoding='utf-8')
+    arquivos_gerados['estatisticas'] = stats_path
+    
+    # Exporta métricas C&K
+    ck_path = os.path.join(output_dir, f"{base_filename}_ck_metricas.csv")
+    os.makedirs(os.path.dirname(ck_path), exist_ok=True)
+    ck_metrics_to_dataframe(ck_report).to_csv(ck_path, index=False, encoding='utf-8')
+    arquivos_gerados['ck_metricas'] = ck_path
+    
+    return arquivos_gerados
+
+def criar_csv_agregado(dados_por_hash: list, project_name: str, output_dir: str = "exports") -> str:
+    """
+    Cria um CSV agregado com métricas de evolução temporal do projeto.
+    
+    Args:
+        dados_por_hash: Lista de dicionários com dados de cada hash
+        project_name: Nome do projeto
+        output_dir: Diretório de saída para o arquivo CSV
+        
+    Returns:
+        str: Caminho do arquivo CSV agregado gerado
+        
+    Side Effects:
+        - Cria arquivo CSV com métricas agregadas por hash/marco temporal
+        - Inclui dados de estatísticas, issues e métricas C&K resumidas
+        
+    Note:
+        Cada linha do CSV representa um marco temporal (hash) com suas métricas agregadas,
+        facilitando análise de evolução do projeto ao longo do tempo.
+    """
+    import pandas as pd
+    
+    # Prepara dados agregados
+    dados_agregados = []
+    
+    for item in dados_por_hash:
+        hash_revision = item['hash']
+        dados = item['dados']
+        
+        # Cria uma linha com métricas agregadas para este hash
+        linha_agregada = {
+            'hash': hash_revision,
+            'hash_short': hash_revision[:8],
+            'timestamp': pd.Timestamp.now().isoformat()
+        }
+        
+        # Adiciona estatísticas do projeto
+        if 'estatisticas' in dados:
+            stats = dados['estatisticas']
+            linha_agregada.update({
+                'total_loc': stats.get('total_loc', 0),
+                'total_lloc': stats.get('total_lloc', 0),
+                'total_sloc': stats.get('total_sloc', 0),
+                'total_comments': stats.get('total_comments', 0),
+                'total_blank': stats.get('total_blank', 0),
+                'n_files': stats.get('n_files', 0),
+                'mean_maintainability_index': stats.get('mean_maintainability_index', 0.0),
+                'mean_complexity': stats.get('mean_complexity', 0.0)
+            })
+        
+        # Adiciona métricas de issues (se disponível)
+        if 'issues_metrics' in dados:
+            issues_metrics = dados['issues_metrics']
+            if not issues_metrics.empty:
+                linha_agregada.update({
+                    'total_issues': issues_metrics['total_issues'].sum(),
+                    'avg_issues_per_month': issues_metrics['avg_issues_per_month'].mean(),
+                    'median_interval_days': issues_metrics['median_interval_days'].median()
+                })
+        
+        # Adiciona resumo de métricas C&K
+        if 'ck_metrics' in dados:
+            ck_metrics = dados['ck_metrics']
+            if not ck_metrics.empty:
+                linha_agregada.update({
+                    'total_classes': len(ck_metrics),
+                    'avg_wmc': ck_metrics['WMC'].mean() if 'WMC' in ck_metrics.columns else 0.0,
+                    'avg_dit': ck_metrics['DIT'].mean() if 'DIT' in ck_metrics.columns else 0.0,
+                    'avg_noc': ck_metrics['NOC'].mean() if 'NOC' in ck_metrics.columns else 0.0,
+                    'avg_rfc': ck_metrics['RFC'].mean() if 'RFC' in ck_metrics.columns else 0.0,
+                    'avg_cbo': ck_metrics['CBO'].mean() if 'CBO' in ck_metrics.columns else 0.0,
+                    'avg_lcom': ck_metrics['LCOM'].mean() if 'LCOM' in ck_metrics.columns else 0.0
+                })
+        
+        dados_agregados.append(linha_agregada)
+    
+    # Cria DataFrame e salva CSV
+    df_agregado = pd.DataFrame(dados_agregados)
+    
+    # Ordena por hash para manter ordem cronológica
+    df_agregado = df_agregado.sort_values('hash')
+    
+    # Salva arquivo CSV agregado
+    arquivo_agregado = os.path.join(output_dir, f"{project_name}_evolucao_temporal.csv")
+    os.makedirs(os.path.dirname(arquivo_agregado), exist_ok=True)
+    df_agregado.to_csv(arquivo_agregado, index=False, encoding='utf-8')
+    
+    return arquivo_agregado
+
+def coletar_dados_para_agregacao(hash_revision: str, repo_dir: str, project_name: str) -> dict:
+    """
+    Coleta todos os dados de métricas para um hash específico.
+    
+    Args:
+        hash_revision: Hash da revisão do git para análise
+        repo_dir: Caminho para o diretório do repositório
+        project_name: Nome do projeto
+        
+    Returns:
+        dict: Dicionário com todos os dados coletados para o hash
+    """
+    # Faz checkout e obtém métricas
+    utils.checkout_git_revision(repo_dir, hash_revision)
+    raw_halstead_report = analytics.get_project_metrics(repo_dir)
+    ck_report = analytics.get_ck_metrics(repo_dir)
+    statistics = analytics.get_project_statistics(raw_halstead_report, hash_revision)
+    
+    repo_org = repo_dir.split("/")[1] if len(repo_dir.split("/")) > 1 else "unknown"
+    repo_name = repo_dir.split("/")[2] if len(repo_dir.split("/")) > 2 else project_name
+    
+    dados_coletados = {
+        'estatisticas': statistics,
+        'ck_metrics': ck_metrics_to_dataframe(ck_report)
+    }
+    
+    # Tenta obter métricas de issues
+    try:
+        issues_df = issues.get_issues_df({repo_org: repo_name})
+        metrics_df = issues.compute_issue_metrics(issues_df)
+        dados_coletados['issues_metrics'] = metrics_df
+    except Exception:
+        dados_coletados['issues_metrics'] = pd.DataFrame()
+    
+    return dados_coletados
 
 def gerar_tabelas(hash_revision: str, repo_dir: str, project_name: str) -> None:
     """
@@ -276,8 +477,53 @@ st.pyplot(fig)
 if rodar_analise:
     st.title(f"Análise de Código - Projeto: {repos_locais}")
     now = datetime.datetime.now()
+    
+    todos_arquivos_csv = []
+    dados_para_agregacao = []
+    
     for hash in hashes_utilizaveis:
         gerar_tabelas(hash, repo_dir, repos_locais)
+        
+        # Exporta dados para CSV
+        try:
+            arquivos_csv = exportar_dados_csv(hash, repo_dir, repos_locais)
+            todos_arquivos_csv.append({
+                'hash': hash,
+                'arquivos': arquivos_csv
+            })
+            st.success(f"Dados do hash {hash[:8]} exportados para CSV")
+        except Exception as e:
+            st.error(f"Erro ao exportar CSV para hash {hash[:8]}: {e}")
+        
+        # Coleta dados para CSV agregado
+        try:
+            dados_hash = coletar_dados_para_agregacao(hash, repo_dir, repos_locais)
+            dados_para_agregacao.append({
+                'hash': hash,
+                'dados': dados_hash
+            })
+        except Exception as e:
+            st.warning(f"Erro ao coletar dados para agregação do hash {hash[:8]}: {e}")
+    
+    # Gera CSV agregado com evolução temporal
+    if dados_para_agregacao:
+        try:
+            arquivo_agregado = criar_csv_agregado(dados_para_agregacao, repos_locais)
+            st.success(f"CSV agregado de evolução temporal gerado: `{arquivo_agregado}`")
+        except Exception as e:
+            st.error(f"Erro ao gerar CSV agregado: {e}")
+    
     end = datetime.datetime.now()
     elapsed = end - now
     st.write(f"Time elapsed: {elapsed.seconds} segundos")
+    
+    # Exibe resumo dos arquivos CSV gerados
+    if todos_arquivos_csv:
+        st.header("Arquivos CSV Gerados")
+        for item in todos_arquivos_csv:
+            st.write(f"**Hash {item['hash'][:8]}:**")
+            for tipo, caminho in item['arquivos'].items():
+                if caminho:
+                    st.write(f"  - {tipo}: `{caminho}`")
+                else:
+                    st.write(f"  - {tipo}: ❌ Erro na geração")

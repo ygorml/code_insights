@@ -1,0 +1,2 @@
+repo,total_issues,first_issue_date,last_issue_date,duration_days,duration_months,avg_issues_per_month,median_interval_days
+scikit-learn/scikit-learn,100,2011-02-12 13:27:33+00:00,2016-07-26 07:45:26+00:00,1990,66.33,1.51,6.0

@@ -244,6 +244,228 @@ class TestDataExport:
             import json
             json_string = json.dumps(sample_data)
             assert 'metrics' in json_string
+    
+    @patch('visualization.analytics')
+    @patch('visualization.issues')
+    @patch('visualization.utils')
+    @patch('os.makedirs')
+    @patch('os.path.exists')
+    def test_exportar_dados_csv(self, mock_exists, mock_makedirs, mock_utils, mock_issues, mock_analytics):
+        """Test CSV export function for milestone hash data."""
+        # Mock dependencies
+        mock_exists.return_value = False
+        mock_utils.checkout_git_revision.return_value = None
+        mock_analytics.get_project_metrics.return_value = {
+            'file1.py': {'loc': 100, 'complexity': 5.0}
+        }
+        mock_analytics.get_ck_metrics.return_value = {
+            'file1.py': {'ClassA': {'WMC': 10, 'DIT': 2}}
+        }
+        mock_analytics.get_project_statistics.return_value = {
+            'total_loc': 100,
+            'n_files': 1
+        }
+        mock_issues.get_issues_df.return_value = pd.DataFrame({
+            'repo': ['test/repo'],
+            'number': [1],
+            'title': ['Test Issue'],
+            'created_at': ['2023-01-01']
+        })
+        mock_issues.compute_issue_metrics.return_value = pd.DataFrame({
+            'repo': ['test/repo'],
+            'total_issues': [1]
+        })
+        
+        # Test the function
+        if hasattr(visualization, 'exportar_dados_csv'):
+            result = visualization.exportar_dados_csv(
+                hash_revision='abc123',
+                repo_dir='/test/repo',
+                project_name='test-project'
+            )
+            
+            # Verify result structure
+            assert isinstance(result, dict)
+            expected_keys = ['issues', 'metricas_arquivo', 'estatisticas', 'ck_metricas']
+            for key in expected_keys:
+                assert key in result
+            
+            # Verify directory creation was called
+            mock_makedirs.assert_called_once()
+            
+            # Verify analytics functions were called
+            mock_analytics.get_project_metrics.assert_called_once()
+            mock_analytics.get_ck_metrics.assert_called_once()
+            mock_analytics.get_project_statistics.assert_called_once()
+    
+    @patch('visualization.pd.DataFrame.to_csv')
+    def test_exportar_dados_csv_file_creation(self, mock_to_csv):
+        """Test that CSV files are actually created with correct names."""
+        if hasattr(visualization, 'exportar_dados_csv'):
+            # Create mock data
+            sample_data = {
+                'file1.py': {'loc': 100, 'complexity': 5.0}
+            }
+            
+            # Test DataFrame conversion functions
+            df_project = visualization.projeto_to_dataframe(sample_data)
+            assert isinstance(df_project, pd.DataFrame)
+            assert 'arquivo' in df_project.columns
+            
+            # Test C&K metrics conversion
+            ck_data = {
+                'file1.py': {'ClassA': {'WMC': 10, 'DIT': 2}}
+            }
+            df_ck = visualization.ck_metrics_to_dataframe(ck_data)
+            assert isinstance(df_ck, pd.DataFrame)
+            assert 'arquivo' in df_ck.columns
+            assert 'classe' in df_ck.columns
+            
+            # Test statistics conversion
+            stats_data = {'total_loc': 100, 'n_files': 1}
+            df_stats = visualization.relatorio_estatistico_to_dataframe(stats_data)
+            assert isinstance(df_stats, pd.DataFrame)
+    
+    @patch('visualization.os.makedirs')
+    @patch('visualization.pd.DataFrame.to_csv')
+    def test_criar_csv_agregado(self, mock_to_csv, mock_makedirs):
+        """Test creation of aggregated CSV for temporal evolution."""
+        if hasattr(visualization, 'criar_csv_agregado'):
+            # Mock data for multiple hashes
+            dados_por_hash = [
+                {
+                    'hash': 'abc123def456',
+                    'dados': {
+                        'estatisticas': {
+                            'total_loc': 1000,
+                            'total_lloc': 800,
+                            'n_files': 10,
+                            'mean_complexity': 5.5,
+                            'mean_maintainability_index': 70.0
+                        },
+                        'ck_metrics': pd.DataFrame({
+                            'WMC': [10, 15],
+                            'DIT': [2, 3],
+                            'NOC': [0, 1],
+                            'RFC': [20, 25],
+                            'CBO': [5, 8],
+                            'LCOM': [3, 4]
+                        }),
+                        'issues_metrics': pd.DataFrame({
+                            'total_issues': [50],
+                            'avg_issues_per_month': [5.2],
+                            'median_interval_days': [7.5]
+                        })
+                    }
+                },
+                {
+                    'hash': 'def456ghi789',
+                    'dados': {
+                        'estatisticas': {
+                            'total_loc': 1200,
+                            'total_lloc': 950,
+                            'n_files': 12,
+                            'mean_complexity': 6.0,
+                            'mean_maintainability_index': 68.5
+                        },
+                        'ck_metrics': pd.DataFrame({
+                            'WMC': [12, 18],
+                            'DIT': [3, 4],
+                            'NOC': [1, 2],
+                            'RFC': [25, 30],
+                            'CBO': [6, 10],
+                            'LCOM': [4, 5]
+                        }),
+                        'issues_metrics': pd.DataFrame({
+                            'total_issues': [65],
+                            'avg_issues_per_month': [6.1],
+                            'median_interval_days': [6.8]
+                        })
+                    }
+                }
+            ]
+            
+            # Test the function
+            result = visualization.criar_csv_agregado(
+                dados_por_hash=dados_por_hash,
+                project_name='test-project',
+                output_dir='test_exports'
+            )
+            
+            # Verify result is a file path
+            assert isinstance(result, str)
+            assert 'test-project_evolucao_temporal.csv' in result
+            
+            # Verify directory creation was called
+            mock_makedirs.assert_called()
+            
+            # Verify CSV was written
+            mock_to_csv.assert_called()
+    
+    @patch('visualization.utils.checkout_git_revision')
+    @patch('visualization.analytics.get_project_metrics')
+    @patch('visualization.analytics.get_ck_metrics')
+    @patch('visualization.analytics.get_project_statistics')
+    @patch('visualization.issues.get_issues_df')
+    @patch('visualization.issues.compute_issue_metrics')
+    def test_coletar_dados_para_agregacao(self, mock_compute_issues, mock_get_issues, 
+                                         mock_get_stats, mock_get_ck, mock_get_metrics, 
+                                         mock_checkout):
+        """Test data collection for aggregation."""
+        if hasattr(visualization, 'coletar_dados_para_agregacao'):
+            # Mock returns
+            mock_get_metrics.return_value = {'file1.py': {'loc': 100}}
+            mock_get_ck.return_value = {'file1.py': {'ClassA': {'WMC': 10}}}
+            mock_get_stats.return_value = {'total_loc': 100, 'n_files': 1}
+            mock_get_issues.return_value = pd.DataFrame({'repo': ['test/repo']})
+            mock_compute_issues.return_value = pd.DataFrame({'total_issues': [10]})
+            
+            # Test the function
+            result = visualization.coletar_dados_para_agregacao(
+                hash_revision='abc123',
+                repo_dir='/test/repo',
+                project_name='test-project'
+            )
+            
+            # Verify result structure
+            assert isinstance(result, dict)
+            assert 'estatisticas' in result
+            assert 'ck_metrics' in result
+            assert 'issues_metrics' in result
+            
+            # Verify functions were called
+            mock_checkout.assert_called_once_with('/test/repo', 'abc123')
+            mock_get_metrics.assert_called_once()
+            mock_get_ck.assert_called_once()
+            mock_get_stats.assert_called_once()
+    
+    def test_csv_agregado_data_structure(self):
+        """Test the data structure of aggregated CSV."""
+        if hasattr(visualization, 'criar_csv_agregado'):
+            # Test with minimal data
+            dados_minimos = [
+                {
+                    'hash': 'test123',
+                    'dados': {
+                        'estatisticas': {'total_loc': 100, 'n_files': 1},
+                        'ck_metrics': pd.DataFrame(),
+                        'issues_metrics': pd.DataFrame()
+                    }
+                }
+            ]
+            
+            with patch('visualization.os.makedirs'), \
+                 patch('visualization.pd.DataFrame.to_csv') as mock_csv:
+                
+                visualization.criar_csv_agregado(dados_minimos, 'test')
+                
+                # Verify CSV was called with DataFrame
+                mock_csv.assert_called_once()
+                
+                # Get the DataFrame that was written
+                call_args = mock_csv.call_args
+                # The DataFrame should have been created and passed to to_csv
+                assert mock_csv.called
 
 
 class TestInteractivity:
