@@ -256,12 +256,12 @@ rodar_analise = st.sidebar.button("Analisar!")
 
 #baixar = st.sidebar.button("Baixar PDF", on_click=salvar_pdf)
 
-st.sidebar.divider() 
+# st.sidebar.divider() 
 
-st.sidebar.write("3. AI Insights")
-prompt = st.sidebar.chat_input("O que deseja saber?")
-if prompt:
-    st.sidebar.write(prompt)
+# st.sidebar.write("3. AI Insights")
+# prompt = st.sidebar.chat_input("O que deseja saber?")
+# if prompt:
+#     st.sidebar.write(prompt)
     
 i=0
 hashes_utilizaveis = []
